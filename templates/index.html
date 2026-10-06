@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Growth & Environmental Monitor | ESP32</title>
+    <meta name="description" content="Precision agriculture IoT dashboard for monitoring relative soil moisture, temperature, and plant height growth using ESP32 edge telemetry.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2.2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="app-layout">
+
+    <!-- ================= SIDEBAR NAVIGATION ================= -->
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🌱</span>
+            <div class="logo-text">
+                <strong>Plant Monitor</strong>
+                <span class="logo-sub">IoT Precision Ag</span>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <a class="nav-item active" href="#dashboard" data-view="dashboard">
+                <span class="nav-icon">🏠</span> Dashboard
+            </a>
+            <a class="nav-item" href="#live" data-view="live">
+                <span class="nav-icon">📡</span> Live Telemetry
+            </a>
+            <a class="nav-item" href="#growth" data-view="growth">
+                <span class="nav-icon">🌿</span> Plant Growth
+            </a>
+            <a class="nav-item" href="#analytics" data-view="analytics">
+                <span class="nav-icon">📊</span> Analytics & Trends
+            </a>
+            <a class="nav-item" href="#history" data-view="history">
+                <span class="nav-icon">📋</span> Sensor History
+            </a>
+            <a class="nav-item" href="#device" data-view="device">
+                <span class="nav-icon">🔌</span> Device & Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="node-badge">
+                <span class="node-dot"></span>
+                <span id="sidebarDeviceId">Node: ESP32_003</span>
+            </div>
+            <div class="firmware-tag">FW: v1.4 • HW: Rev 1</div>
+        </div>
+    </aside>
+
+    <!-- ================= MAIN CONTENT AREA ================= -->
+    <main class="main-content">
+
+        <!-- HEADER -->
+        <header class="top-header">
+            <div>
+                <h1 id="pageTitle">Environmental Monitoring Dashboard</h1>
+                <p id="pageSubtitle">Real-time edge telemetry from ESP32 DevKit V1 node</p>
+            </div>
+
+            <div class="header-status-group">
+                <!-- Device Heartbeat Badge -->
+                <div id="connectionStatusBox" class="connection-status">
+                    <span id="connectionDot" class="connection-dot"></span>
+                    <span id="connectionText">CHECKING...</span>
+                    <span id="connectionSeconds" class="connection-sub"></span>
+                </div>
+
+                <div class="device-tag">
+                    <span>Node ID:</span>
+                    <strong id="headerDeviceId">ESP32_003</strong>
+                </div>
+            </div>
+        </header>
+
+        <!-- TOP CONTEXTUAL ALERT NOTIFICATION -->
+        <section id="alertBox" class="alert-box hidden">
+            <span id="alertIcon">💧</span>
+            <div class="alert-body">
+                <strong id="alertTitle">Moisture Alert</strong>
+                <p id="alertMessage">Relative soil moisture is below the normal monitoring threshold.</p>
+            </div>
+        </section>
+
+        <!-- ================= VIEW 1: DASHBOARD (DEFAULT) ================= -->
+        <div id="view-dashboard" class="view-section active">
+
+            <!-- HERO SENSOR GRID (Includes Liquid Fill Tank) -->
+            <section class="sensor-grid">
+
+                <!-- 1. ANIMATED LIQUID SOIL MOISTURE TANK -->
+                <div class="sensor-card liquid-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-badge-icon">💧</span>
+                            <div>
+                                <h3>Soil Moisture</h3>
+                                <span class="card-subtitle">Relative Index (RSMI)</span>
+                            </div>
+                        </div>
+                        <span id="moistureStatus" class="status-badge good">GOOD</span>
+                    </div>
+
+                    <!-- Transparent Liquid Fill Reservoir -->
+                    <div class="tank-viewport">
+                        <div class="tank-ruler">
+                            <span>100%</span>
+                            <span>75%</span>
+                            <span>50%</span>
+                            <span>25%</span>
+                            <span>0%</span>
+                        </div>
+
+                        <div class="tank-glass">
+                            <!-- Fluid Rising / Falling Water Body -->
+                            <div id="tankLiquidBody" class="liquid-body" style="height: 0%;">
+                                <!-- Dual Sinusoidal Animated Wave Surface -->
+                                <div class="wave-crest-wrap">
+                                    <svg class="wave-svg wave-back" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                                        <path d="M0,40 C150,90 350,-20 500,45 C650,110 900,0 1200,40 L1200,120 L0,120 Z"></path>
+                                    </svg>
+                                    <svg class="wave-svg wave-front" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                                        <path d="M0,20 C200,-20 400,70 600,20 C800,-30 1000,60 1200,20 L1200,120 L0,120 Z"></path>
+                                    </svg>
+                                </div>
+                                <div class="liquid-depth-layer"></div>
+                            </div>
+
+                            <!-- Centered High-Contrast Numeric Overlay -->
+                            <div class="tank-center-readout">
+                                <div class="tank-num-wrap">
+                                    <span id="moistureValue" class="tank-large-num">--</span>
+                                    <span class="tank-percent-sign">%</span>
+                                </div>
+                                <div id="tankClassificationLabel" class="tank-tier-pill">Evaluating...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tank Metadata Footer -->
+                    <div class="tank-footer-grid">
+                        <div class="meta-cell">
+                            <span class="meta-label">Raw ADC</span>
+                            <strong id="moistureRaw">--</strong>
+                        </div>
+                        <div class="meta-cell">
+                            <span class="meta-label">Drying Risk</span>
+                            <strong id="moistureDryingRiskBadge" class="risk-badge-text">--</strong>
+                        </div>
+                        <div class="meta-cell">
+                            <span class="meta-label">Calibration</span>
+                            <strong title="Dry: 3326 | Wet: 1520">Calibrated</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. SOIL TEMPERATURE CARD -->
+                <div class="sensor-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-badge-icon">🌡️</span>
+                            <div>
+                                <h3>Soil Temperature</h3>
+                                <span class="card-subtitle">DS18B20 1-Wire Digital</span>
+                            </div>
+                        </div>
+                        <span id="temperatureStatus" class="status-badge good">NORMAL</span>
+                    </div>
+
+                    <div class="sensor-main-stat">
+                        <span id="temperatureValue" class="stat-number">--</span>
+                        <span class="stat-unit">°C</span>
+                    </div>
+
+                    <div class="metric-meter-wrap">
+                        <div class="meter-bar-track">
+                            <div id="temperatureBar" class="meter-bar-fill" style="width: 50%;"></div>
+                        </div>
+                        <div class="meter-labels">
+                            <span>0°C</span>
+                            <span>Optimal: 20-28°C</span>
+                            <span>50°C</span>
+                        </div>
+                    </div>
+
+                    <div class="card-footer-meta">
+                        <span>GPIO 4 • 4.7kΩ Pull-up</span>
+                        <span id="tempThermalState">Optimal</span>
+                    </div>
+                </div>
+
+                <!-- 3. SENSOR DISTANCE CARD -->
+                <div class="sensor-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-badge-icon">📏</span>
+                            <div>
+                                <h3>Sensor Distance</h3>
+                                <span class="card-subtitle">HC-SR04 Ultrasonic</span>
+                            </div>
+                        </div>
+                        <span id="distanceStatus" class="status-badge good">ACTIVE</span>
+                    </div>
+
+                    <div class="sensor-main-stat">
+                        <span id="distanceValue" class="stat-number">--</span>
+                        <span class="stat-unit">cm</span>
+                    </div>
+
+                    <div class="distance-visual-meter">
+                        <div class="beam-emitter">Transducer (30.0 cm)</div>
+                        <div class="beam-air-gap">
+                            <span id="beamDistanceLabel">-- cm free air</span>
+                        </div>
+                        <div class="beam-canopy">Canopy Reflection Surface</div>
+                    </div>
+
+                    <div class="card-footer-meta">
+                        <span>Trig: GPIO 5 • Echo: GPIO 18</span>
+                        <span>Sonic Pulse Ranging</span>
+                    </div>
+                </div>
+
+                <!-- 4. PLANT HEIGHT CARD -->
+                <div class="sensor-card height-stat-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-badge-icon">🌿</span>
+                            <div>
+                                <h3>Plant Height</h3>
+                                <span class="card-subtitle">From 30.0 cm Mount Baseline</span>
+                            </div>
+                        </div>
+                        <span id="growthStatus" class="status-badge good">GROWING</span>
+                    </div>
+
+                    <div class="sensor-main-stat">
+                        <span id="heightValue" class="stat-number accent-green">--</span>
+                        <span class="stat-unit">cm</span>
+                    </div>
+
+                    <div class="growth-delta-box">
+                        <div class="delta-col">
+                            <span class="delta-title">Baseline Height</span>
+                            <strong id="baselineHeightValue">17.12 cm</strong>
+                        </div>
+                        <div class="delta-col">
+                            <span class="delta-title">Total Growth</span>
+                            <strong id="growthDeltaValue" class="growth-plus">+5.08 cm</strong>
+                        </div>
+                    </div>
+
+                    <div class="card-footer-meta">
+                        <span>Formula: 30.0 cm - Distance</span>
+                        <span id="growthRateLabel">Active Canopy</span>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ENVIRONMENTAL PLANT CONDITION SCORE & DEVICE STATUS PANELS -->
+            <section class="two-panel-grid">
+
+                <!-- ENVIRONMENTAL PLANT CONDITION SCORE (EXPLAINABLE) -->
+                <div class="panel condition-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>🌱 Environmental Plant Condition Score</h2>
+                            <p>Transparent multi-factor score derived from real environmental measurements</p>
+                        </div>
+                        <span id="healthBadge" class="health-badge">OPTIMAL</span>
+                    </div>
+
+                    <div class="score-display-row">
+                        <div class="score-circle-wrapper">
+                            <div class="score-circular-metric">
+                                <span id="healthScore" class="score-large-digit">--</span>
+                                <span class="score-scale">/100</span>
+                            </div>
+                        </div>
+
+                        <div class="score-summary-column">
+                            <h4 id="healthTitle">Evaluating Environmental Conditions...</h4>
+                            <p id="healthMessage">Analyzing real-time soil moisture index, thermal stability, and drying risk.</p>
+                            
+                            <!-- Itemized Transparent Explanations -->
+                            <div id="conditionBreakdownList" class="condition-reasons-list">
+                                <div class="reason-chip">Evaluating factors...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="condition-disclaimer">
+                        <span>ℹ️ Calculated from environmental parameters. This is a condition score, not a clinical pathology diagnosis.</span>
+                    </div>
+                </div>
+
+                <!-- DEVICE TELEMETRY & HARDWARE LIVENESS -->
+                <div class="panel device-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>📡 Edge Node Telemetry</h2>
+                            <p>Hardware liveness and transmission verification</p>
+                        </div>
+                        <span id="deviceIndicator" class="live-indicator">● LIVE</span>
+                    </div>
+
+                    <div class="telemetry-table">
+                        <div class="telemetry-row">
+                            <span class="tel-label">Transmitting Device ID</span>
+                            <strong id="deviceNodeId">ESP32_003</strong>
+                        </div>
+                        <div class="telemetry-row">
+                            <span class="tel-label">Hardware Connection State</span>
+                            <strong id="deviceConnection" class="status-online">● Connected (Online)</strong>
+                        </div>
+                        <div class="telemetry-row">
+                            <span class="tel-label">Active Hardware Sensors</span>
+                            <span>3 Physical Sensors (Moisture, Temp, Distance)</span>
+                        </div>
+                        <div class="telemetry-row">
+                            <span class="tel-label">Atmospheric Humidity</span>
+                            <span class="muted-note">None Installed (No fake readings)</span>
+                        </div>
+                        <div class="telemetry-row">
+                            <span class="tel-label">Last Transmission</span>
+                            <strong id="lastUpdate">Checking...</strong>
+                        </div>
+                        <div class="telemetry-row">
+                            <span class="tel-label">Transmission Latency</span>
+                            <span id="heartbeatLatencyLabel">Normal (&lt; 30s)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- RECOMMENDATION ENGINE -->
+            <section class="panel recommendation-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>💡 Rule-Based Decision Support</h2>
+                        <p>Explainable agronomic recommendations based on combined moisture and thermal dynamics</p>
+                    </div>
+                    <span class="rec-tag">Advisory Engine</span>
+                </div>
+
+                <div class="recommendation-grid">
+                    <div class="rec-card">
+                        <div class="rec-icon">💧</div>
+                        <div>
+                            <h4 id="waterRecommendation">Watering Advisory</h4>
+                            <p id="waterMessage">Evaluating soil moisture and evaporation rate.</p>
+                        </div>
+                    </div>
+
+                    <div class="rec-card">
+                        <div class="rec-icon">🌡️</div>
+                        <div>
+                            <h4 id="temperatureRecommendation">Thermal Advisory</h4>
+                            <p id="temperatureMessage">Root-zone temperature is being monitored continuously.</p>
+                        </div>
+                    </div>
+
+                    <div class="rec-card">
+                        <div class="rec-icon">🌿</div>
+                        <div>
+                            <h4 id="growthRecommendation">Canopy Growth Advisory</h4>
+                            <p id="growthMessage">Ultrasonic vertical profiling active. Baseline: 30.0 cm.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LIVE SENSOR DATA SUMMARY TABLE -->
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>📡 Current Reading Telemetry Frame</h2>
+                        <p>Exact validated engineering units captured from ESP32 edge node</p>
+                    </div>
+                    <span class="badge-frame-time" id="frameTimestamp">Live Telemetry</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Sensor Channel</th>
+                                <th>Physical Pin</th>
+                                <th>Measurement</th>
+                                <th>Unit</th>
+                                <th>Channel Health</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>💧 Capacitive Soil Moisture</td>
+                                <td>GPIO 34 (ADC1)</td>
+                                <td id="tableMoisture" class="num-bold">--</td>
+                                <td>% (RSMI)</td>
+                                <td><span class="badge-active">● Active (Raw: <span id="tableMoistureRaw">--</span>)</span></td>
+                            </tr>
+                            <tr>
+                                <td>🌡️ DS18B20 Digital Probe</td>
+                                <td>GPIO 4 (1-Wire)</td>
+                                <td id="tableTemperature" class="num-bold">--</td>
+                                <td>°C</td>
+                                <td><span class="badge-active">● Active Digital</span></td>
+                            </tr>
+                            <tr>
+                                <td>📏 HC-SR04 Ultrasonic Distance</td>
+                                <td>Trig: 5, Echo: 18</td>
+                                <td id="tableDistance" class="num-bold">--</td>
+                                <td>cm</td>
+                                <td><span class="badge-active">● Active Echo</span></td>
+                            </tr>
+                            <tr>
+                                <td>🌿 Calculated Plant Height</td>
+                                <td>Formula (30.0 - Dist)</td>
+                                <td id="tableHeight" class="num-bold">--</td>
+                                <td>cm</td>
+                                <td><span class="badge-calc">● Calibrated Delta</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- LIVE CHARTS SECTION -->
+            <section class="panel chart-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>📊 Historical Trend Curves</h2>
+                        <p>Real-time time-series telemetry (Updated silently in-place without canvas flicker)</p>
+                    </div>
+                </div>
+
+                <div class="analytics-charts-grid">
+                    <div class="chart-box">
+                        <div class="chart-box-header">
+                            <h4>💧 Relative Soil Moisture (%)</h4>
+                            <span class="chart-badge">Calibrated RSMI</span>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="moistureChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-box">
+                        <div class="chart-box-header">
+                            <h4>🌡️ Soil Temperature (°C)</h4>
+                            <span class="chart-badge">DS18B20</span>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="temperatureChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-box">
+                        <div class="chart-box-header">
+                            <h4>🌱 Plant Canopy Height (cm)</h4>
+                            <span class="chart-badge">Vertical Growth</span>
+                        </div>
+                        <div class="chart-canvas-wrap">
+                            <canvas id="heightChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ================= VIEW 2: LIVE MONITORING ================= -->
+        <div id="view-live" class="view-section">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>📡 High-Resolution Live Telemetry Feed</h2>
+                        <p>Inspect incoming raw analog signals and digital frames at 5-second polling cadence</p>
+                    </div>
+                </div>
+                <div class="live-signal-grid">
+                    <div class="signal-card">
+                        <h4>ADC Soil Moisture Channel</h4>
+                        <div class="signal-value" id="liveMoistureRaw">--</div>
+                        <p>12-bit ADC raw integer range [1520..3326]</p>
+                        <div class="progress-bar-thin">
+                            <div id="liveRawAdcBar" class="progress-fill-thin" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="signal-card">
+                        <h4>DS18B20 1-Wire Channel</h4>
+                        <div class="signal-value" id="liveTempRaw">-- °C</div>
+                        <p>64-bit ROM hardware addressing on GPIO 4</p>
+                        <div class="signal-meta">Fault Filter: Rejects -127°C and 85°C</div>
+                    </div>
+
+                    <div class="signal-card">
+                        <h4>HC-SR04 Sonic Flight Time</h4>
+                        <div class="signal-value" id="liveDistanceRaw">-- cm</div>
+                        <p>Divided 2.5V safe logic on GPIO 18</p>
+                        <div class="signal-meta">Mount Height Baseline: 30.0 cm</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= VIEW 3: PLANT GROWTH ================= -->
+        <div id="view-growth" class="view-section">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>🌿 Plant Growth Vertical Canopy Analysis</h2>
+                        <p>Non-contact ultrasonic tracking of vegetative elongation over time</p>
+                    </div>
+                </div>
+
+                <div class="growth-diagram-grid">
+                    <!-- Gantry Visualization -->
+                    <div class="gantry-visual-card">
+                        <h3>Ultrasonic Measurement Geometry</h3>
+                        <div class="gantry-rig">
+                            <div class="rig-sensor-bar">
+                                <span class="rig-label">HC-SR04 Transducer (Reference: 30.0 cm)</span>
+                            </div>
+                            <div class="rig-gap-zone">
+                                <span id="rigDistanceText">Distance: -- cm</span>
+                            </div>
+                            <div id="rigCanopyZone" class="rig-plant-canopy" style="height: 50%;">
+                                <div class="canopy-leaves">🌿 🌿 🌿</div>
+                                <span id="rigHeightText">Plant Height: -- cm</span>
+                            </div>
+                            <div class="rig-soil-surface">
+                                <span>Soil Baseline Surface (0.0 cm)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Growth Stats -->
+                    <div class="growth-metrics-card">
+                        <h3>Vegetative Growth Metrics</h3>
+                        <div class="growth-stat-list">
+                            <div class="growth-stat-item">
+                                <span>Initial Baseline Height:</span>
+                                <strong id="growthInitialHeight">17.12 cm</strong>
+                            </div>
+                            <div class="growth-stat-item">
+                                <span>Current Measured Height:</span>
+                                <strong id="growthCurrentHeight" class="text-green">-- cm</strong>
+                            </div>
+                            <div class="growth-stat-item">
+                                <span>Net Biomass Elongation:</span>
+                                <strong id="growthNetElongation" class="text-green">-- cm</strong>
+                            </div>
+                            <div class="growth-stat-item">
+                                <span>Growth Trend Classification:</span>
+                                <span class="badge-growth-status">Active Vegetative</span>
+                            </div>
+                        </div>
+
+                        <div class="growth-methodology-note">
+                            <strong>Physical Integrity Note:</strong>
+                            <p>Ultrasonic distance $D_{sensor}$ is sampled by measuring echo flight time ($t_{flight} \times 0.0343 / 2$). Plant height is computed deterministically as $H = 30.0 - D_{sensor}$. Height values are never fabricated.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= VIEW 4: ANALYTICS ================= -->
+        <div id="view-analytics" class="view-section">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>📊 Aggregate Environmental Statistics & Trends</h2>
+                        <p>Summary analytics and honest agronomic rate calculations derived strictly from real SQLite historical records</p>
+                    </div>
+                    <button id="refreshAnalyticsBtn" class="btn-refresh">🔄 Refresh Stats</button>
+                </div>
+
+                <!-- 4 SUMMARY CARDS -->
+                <div class="analytics-stat-grid">
+                    <div class="stat-summary-card">
+                        <span class="stat-summary-title">Total Database Records</span>
+                        <strong id="analyticsSampleCount" class="stat-summary-number">--</strong>
+                        <span class="stat-summary-sub">Persisted in SQLite</span>
+                    </div>
+
+                    <div class="stat-summary-card">
+                        <span class="stat-summary-title">Soil Moisture (RSMI)</span>
+                        <strong id="analyticsAvgMoisture" class="stat-summary-number">-- %</strong>
+                        <span id="analyticsMoistureRange" class="stat-summary-sub">Min: --% | Max: --%</span>
+                    </div>
+
+                    <div class="stat-summary-card">
+                        <span class="stat-summary-title">Soil Temperature</span>
+                        <strong id="analyticsAvgTemp" class="stat-summary-number">-- °C</strong>
+                        <span id="analyticsTempRange" class="stat-summary-sub">Min: --°C | Max: --°C</span>
+                    </div>
+
+                    <div class="stat-summary-card">
+                        <span class="stat-summary-title">Plant Canopy Height</span>
+                        <strong id="analyticsCurrentHeight" class="stat-summary-number text-green">-- cm</strong>
+                        <span id="analyticsHeightRange" class="stat-summary-sub">Min: -- cm | Max: -- cm</span>
+                    </div>
+                </div>
+
+                <!-- TRENDS & RATES SECTION -->
+                <div class="trends-rates-panel">
+                    <h3 class="section-subtitle">📈 Agronomic Trends & Rate Calculations</h3>
+                    <div class="trends-rates-grid">
+                        <!-- Moisture Trend & Evaporation Rate -->
+                        <div class="rate-card">
+                            <div class="rate-card-header">
+                                <span class="rate-icon">💧</span>
+                                <div>
+                                    <h4>Soil Moisture Dynamics</h4>
+                                    <span class="rate-sub">Moisture Trend & Evaporation Pace</span>
+                                </div>
+                            </div>
+                            <div class="rate-stat-box">
+                                <div class="rate-trend-row">
+                                    <span class="rate-label">Trend Direction:</span>
+                                    <span id="analyticsMoistureTrendBadge" class="trend-badge trend-stable">--</span>
+                                </div>
+                                <div class="rate-value-row">
+                                    <span class="rate-label">Moisture Change Rate:</span>
+                                    <strong id="analyticsMoistureRateValue" class="rate-number">--</strong>
+                                </div>
+                            </div>
+                            <div class="rate-card-footer">
+                                <span id="analyticsMoistureRateNote" class="rate-guardrail-note">Requires &ge; 15 min span for reliable calculation</span>
+                            </div>
+                        </div>
+
+                        <!-- Temperature Trend & Thermal Pace -->
+                        <div class="rate-card">
+                            <div class="rate-card-header">
+                                <span class="rate-icon">🌡️</span>
+                                <div>
+                                    <h4>Soil Thermal Dynamics</h4>
+                                    <span class="rate-sub">Root-Zone Heat Accumulation</span>
+                                </div>
+                            </div>
+                            <div class="rate-stat-box">
+                                <div class="rate-trend-row">
+                                    <span class="rate-label">Trend Direction:</span>
+                                    <span id="analyticsTempTrendBadge" class="trend-badge trend-stable">--</span>
+                                </div>
+                                <div class="rate-value-row">
+                                    <span class="rate-label">Thermal Change Rate:</span>
+                                    <strong id="analyticsTempRateValue" class="rate-number">--</strong>
+                                </div>
+                            </div>
+                            <div class="rate-card-footer">
+                                <span id="analyticsTempRateNote" class="rate-guardrail-note">Requires &ge; 15 min span for reliable calculation</span>
+                            </div>
+                        </div>
+
+                        <!-- Plant Canopy Growth Velocity -->
+                        <div class="rate-card">
+                            <div class="rate-card-header">
+                                <span class="rate-icon">🌿</span>
+                                <div>
+                                    <h4>Plant Canopy Growth</h4>
+                                    <span class="rate-sub">Ultrasonic Vertical Elongation</span>
+                                </div>
+                            </div>
+                            <div class="rate-stat-box">
+                                <div class="rate-trend-row">
+                                    <span class="rate-label">Growth Trend:</span>
+                                    <span id="analyticsGrowthTrendBadge" class="trend-badge trend-growing">--</span>
+                                </div>
+                                <div class="rate-value-row">
+                                    <span class="rate-label">Growth Rate:</span>
+                                    <strong id="analyticsGrowthRateValue" class="rate-number text-green">--</strong>
+                                </div>
+                            </div>
+                            <div class="rate-card-footer">
+                                <span id="analyticsGrowthRateNote" class="rate-guardrail-note">Requires &ge; 24h observation period for biological growth rate</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rate-guardrail-banner">
+                        <span class="info-icon">ℹ️</span>
+                        <div>
+                            <strong>Scientific Rate Calculation Guardrail:</strong>
+                            <p>Rate calculations require sufficient valid timestamped data before computing meaningful hourly or daily dynamics. The system automatically displays <em>"Insufficient data"</em> when the time delta between readings is too short, preventing misleading rates from brief polling bursts.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= VIEW 5: SENSOR HISTORY ================= -->
+        <div id="view-history" class="view-section">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>📋 Complete Historical Telemetry Log</h2>
+                        <p>Search, filter, paginate, and export historical sensor records</p>
+                    </div>
+
+                    <div class="header-export-wrap">
+                        <a id="exportCsvBtn" href="/api/history/export" class="btn-export-csv" download="sensor_history.csv">
+                            📥 Export CSV (Excel Ready)
+                        </a>
+                    </div>
+                </div>
+
+                <!-- SEARCH & FILTER TOOLBAR -->
+                <div class="history-filter-toolbar">
+                    <div class="filter-row primary-search-row">
+                        <div class="filter-group flex-2">
+                            <label for="historySearchInput">Text Search</label>
+                            <input type="text" id="historySearchInput" placeholder="Search device, status, or date..." class="search-input">
+                        </div>
+                        <div class="filter-group">
+                            <label for="historyDeviceSelect">Device ID</label>
+                            <select id="historyDeviceSelect" class="select-box">
+                                <option value="">All Devices</option>
+                                <option value="ESP32_003">ESP32_003</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="historyLimitSelect">Per Page</label>
+                            <select id="historyLimitSelect" class="select-box">
+                                <option value="15">15 per page</option>
+                                <option value="30" selected>30 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-row advanced-filter-row">
+                        <div class="filter-group">
+                            <label for="historyDateFrom">Date From</label>
+                            <input type="date" id="historyDateFrom" class="date-input">
+                        </div>
+                        <div class="filter-group">
+                            <label for="historyDateTo">Date To</label>
+                            <input type="date" id="historyDateTo" class="date-input">
+                        </div>
+                        <div class="filter-group range-group">
+                            <label>Moisture Range (%)</label>
+                            <div class="min-max-inputs">
+                                <input type="number" id="historyMinMoisture" placeholder="Min" min="0" max="100">
+                                <span>–</span>
+                                <input type="number" id="historyMaxMoisture" placeholder="Max" min="0" max="100">
+                            </div>
+                        </div>
+                        <div class="filter-group range-group">
+                            <label>Temperature Range (°C)</label>
+                            <div class="min-max-inputs">
+                                <input type="number" id="historyMinTemp" placeholder="Min" min="-20" max="60">
+                                <span>–</span>
+                                <input type="number" id="historyMaxTemp" placeholder="Max" min="-20" max="60">
+                            </div>
+                        </div>
+                        <div class="filter-actions">
+                            <button id="applyFiltersBtn" class="btn-apply-filters">🔍 Filter</button>
+                            <button id="resetFiltersBtn" class="btn-reset-filters">↺ Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABLE CONTAINER -->
+                <div class="table-responsive">
+                    <table class="sensor-history-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Node ID</th>
+                                <th>Moisture Raw</th>
+                                <th>Moisture % (RSMI)</th>
+                                <th>Soil Temp</th>
+                                <th>Distance</th>
+                                <th>Plant Height</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr>
+                                <td colspan="8" class="text-center">Loading verified telemetry records...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PAGINATION CONTROLS -->
+                <div class="pagination-footer">
+                    <span id="paginationInfo">Showing records...</span>
+                    <div class="pagination-buttons">
+                        <button id="prevPageBtn" class="btn-page" disabled>Previous</button>
+                        <button id="nextPageBtn" class="btn-page">Next</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= VIEW 6: DEVICE & SETTINGS ================= -->
+        <div id="view-device" class="view-section">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>🔌 Edge Hardware & Calibration Settings</h2>
+                        <p>Configure capacitive soil moisture calibration points, threshold parameters, and inspect hardware topology</p>
+                    </div>
+                </div>
+
+                <div class="settings-grid">
+                    <!-- 1. EDITABLE CALIBRATION CARD (PHASE 6) -->
+                    <div class="settings-card calibration-card">
+                        <div class="card-section-header">
+                            <div class="cal-title-header">
+                                <span class="cal-badge-icon">⚙️</span>
+                                <div>
+                                    <h3>Soil Moisture Calibration</h3>
+                                    <span class="card-subtitle">Relative Soil Moisture Index (RSMI) Configuration</span>
+                                </div>
+                            </div>
+                            <span class="badge-cal-engine">Backend Flask Engine</span>
+                        </div>
+
+                        <form id="calibrationForm" class="calibration-form" onsubmit="return false;">
+                            <div class="cal-form-row">
+                                <div class="cal-field">
+                                    <label for="dryRawInput">
+                                        <strong>Dry Reference (DRY_RAW)</strong>
+                                        <span class="field-hint">Reading in dry air / dry soil (0% RSMI)</span>
+                                    </label>
+                                    <div class="input-unit-group">
+                                        <input type="number" id="dryRawInput" min="0" max="4095" step="1" value="3326" required>
+                                        <span class="unit-addon">ADC</span>
+                                    </div>
+                                </div>
+
+                                <div class="cal-field">
+                                    <label for="wetRawInput">
+                                        <strong>Wet Reference (WET_RAW)</strong>
+                                        <span class="field-hint">Reading in saturated wet soil (100% RSMI)</span>
+                                    </label>
+                                    <div class="input-unit-group">
+                                        <input type="number" id="wetRawInput" min="0" max="4095" step="1" value="1520" required>
+                                        <span class="unit-addon">ADC</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="cal-form-row">
+                                <div class="cal-field">
+                                    <label for="mountHeightInput">
+                                        <strong>Sensor Mount Height</strong>
+                                        <span class="field-hint">HC-SR04 reference distance to empty soil bed</span>
+                                    </label>
+                                    <div class="input-unit-group">
+                                        <input type="number" id="mountHeightInput" min="5.0" max="100.0" step="0.5" value="30.0" required>
+                                        <span class="unit-addon">cm</span>
+                                    </div>
+                                </div>
+
+                                <div class="cal-field">
+                                    <label for="dryingRiskTempInput">
+                                        <strong>Drying-Risk Temp Threshold</strong>
+                                        <span class="field-hint">Soil temp triggering HIGH drying risk</span>
+                                    </label>
+                                    <div class="input-unit-group">
+                                        <input type="number" id="dryingRiskTempInput" min="15.0" max="50.0" step="0.5" value="30.0" required>
+                                        <span class="unit-addon">°C</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="cal-form-row">
+                                <div class="cal-field">
+                                    <label for="lowMoistureInput">
+                                        <strong>Low Moisture Warning Threshold</strong>
+                                        <span class="field-hint">Moisture index triggering LOW drying risk</span>
+                                    </label>
+                                    <div class="input-unit-group">
+                                        <input type="number" id="lowMoistureInput" min="5.0" max="60.0" step="1.0" value="25.0" required>
+                                        <span class="unit-addon">%</span>
+                                    </div>
+                                </div>
+                                <div class="cal-field cal-meta-preview">
+                                    <label>Current Sensor Target</label>
+                                    <div class="preview-target-box">
+                                        <span class="target-node">ESP32_003</span>
+                                        <span id="calLastUpdatedLabel" class="target-updated">Last update: Baseline</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Feedback Alert Banner -->
+                            <div id="calibrationAlert" class="cal-alert hidden"></div>
+
+                            <div class="cal-actions">
+                                <button type="button" id="saveCalibrationBtn" class="btn-save-cal">💾 Save Calibration</button>
+                                <button type="button" id="resetCalibrationBtn" class="btn-reset-cal">↺ Restore Default (3326 / 1520)</button>
+                            </div>
+                        </form>
+
+                        <div class="cal-info-callout">
+                            <strong>Zero ESP32 Firmware Modification:</strong>
+                            <p>The ESP32 continues sending raw 12-bit ADC values (<code>moisture_raw</code>). Flask safely converts <code>raw &rarr; calibrated RSMI %</code> on the backend. Moisture calculation remains independent from temperature. Temperature dynamically modulates drying risk and condition score without altering raw moisture values.</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. HARDWARE PINOUT & SPECIFICATION REFERENCE -->
+                    <div class="settings-card">
+                        <h3>ESP32 Pinout & Hardware Architecture</h3>
+                        <table class="config-table">
+                            <thead>
+                                <tr>
+                                    <th>Sensor</th>
+                                    <th>ESP32 Pin</th>
+                                    <th>Signal Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Capacitive Moisture</td>
+                                    <td>GPIO 34 (ADC1_CH6)</td>
+                                    <td>0–3.3V Analog Input</td>
+                                </tr>
+                                <tr>
+                                    <td>DS18B20 Temp Probe</td>
+                                    <td>GPIO 4</td>
+                                    <td>1-Wire (4.7kΩ Pull-up)</td>
+                                </tr>
+                                <tr>
+                                    <td>HC-SR04 Sonic Trig</td>
+                                    <td>GPIO 5</td>
+                                    <td>3.3V Pulse Trigger</td>
+                                </tr>
+                                <tr>
+                                    <td>HC-SR04 Sonic Echo</td>
+                                    <td>GPIO 18</td>
+                                    <td>2.5V Voltage Divider</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 style="margin-top: 24px;">Active Heartbeat Parameters</h3>
+                        <div class="config-item">
+                            <span class="config-label">ONLINE State Threshold:</span>
+                            <strong class="config-val">&lt; 30 seconds</strong>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">RECENT State Threshold:</span>
+                            <strong class="config-val">30 – 90 seconds</strong>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">STALE State Threshold:</span>
+                            <strong class="config-val">90 – 300 seconds</strong>
+                        </div>
+                        <div class="config-item">
+                            <span class="config-label">OFFLINE State Threshold:</span>
+                            <strong class="config-val">&gt; 300 seconds</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <div class="footer-left">
+                <strong>IoT Plant Growth & Environmental Monitoring System</strong>
+                <span>ESP32 DevKit V1 • Python Flask • SQLite Persistence • Relative Soil Moisture Index</span>
+            </div>
+            <div class="footer-right">
+                <span class="viva-badge">Academic Engineering Capstone</span>
+            </div>
+        </footer>
+
+    </main>
+
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Main Client Application Controller -->
+<script src="{{ url_for('static', filename='app.js') }}?v=2.3"></script>
+
+</body>
+</html>

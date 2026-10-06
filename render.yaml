@@ -1,0 +1,33 @@
+# =====================================================================
+# Render Infrastructure Blueprint (render.yaml)
+# IoT-Based Plant Growth & Environmental Monitoring System
+#
+# Target Architecture:
+#   Web Service: Render (Flask + Gunicorn + Python 3.12)
+#   Database:    Supabase Managed PostgreSQL (Persistent, no 30-day expiration)
+# =====================================================================
+
+services:
+  - type: web
+    name: plant-growth-monitor-web
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 60 --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: DATABASE_URL
+        sync: false # Configured securely in Render Dashboard (Supabase PostgreSQL Connection URI)
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PRIMARY_DEVICE_ID
+        value: ESP32_003
