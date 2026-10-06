@@ -338,6 +338,17 @@ function updateDistanceAndHeightDisplay(distance, height) {
     // Beam graphic
     updateElementText("beamDistanceLabel", (dNum !== null) ? `${dNum.toFixed(1)} cm free gap` : "-- cm gap");
 
+    // Mini plant stem in dashboard height card
+    const miniStem = document.getElementById("miniPlantStem");
+    if (miniStem) {
+        if (hNum !== null) {
+            const miniStemPct = Math.max(10, Math.min(95, (hNum / APP_CONFIG.sensorMountHeightCm) * 100));
+            miniStem.style.height = `${miniStemPct}%`;
+        } else {
+            miniStem.style.height = "50%";
+        }
+    }
+
     // Gantry view update
     if (dNum !== null && hNum !== null) {
         updateElementText("rigDistanceText", `Flight Distance: ${dNum.toFixed(1)} cm`);
@@ -427,6 +438,21 @@ function updateDeviceLiveness(liveness, createdAt) {
         devIndicator.style.color = liveness.online ? "var(--emerald)" : "var(--status-danger)";
     }
 
+    // Sync mobile top bar pill & mobile greeting status
+    const mobileText = document.getElementById("mobileConnectionText");
+    const mobilePill = document.getElementById("mobileLivePill");
+    const mobileGreetingHeartbeat = document.getElementById("mobileGreetingHeartbeat");
+
+    if (mobileText) {
+        mobileText.textContent = liveness.online ? "LIVE" : liveness.state;
+    }
+    if (mobilePill) {
+        mobilePill.className = `mobile-live-pill ${liveness.online ? "online" : "offline"}`;
+    }
+    if (mobileGreetingHeartbeat) {
+        mobileGreetingHeartbeat.textContent = liveness.online ? "LIVE Telemetry" : `${liveness.state}`;
+    }
+
     if (lastUpdateEl && createdAt) {
         try {
             const dt = new Date(createdAt.replace(" ", "T"));
@@ -457,6 +483,13 @@ function setDeviceOfflineUI() {
         devIndicator.textContent = "● OFFLINE";
         devIndicator.style.color = "var(--status-danger)";
     }
+
+    const mobileText = document.getElementById("mobileConnectionText");
+    const mobilePill = document.getElementById("mobileLivePill");
+    const mobileGreetingHeartbeat = document.getElementById("mobileGreetingHeartbeat");
+    if (mobileText) mobileText.textContent = "OFFLINE";
+    if (mobilePill) mobilePill.className = "mobile-live-pill offline";
+    if (mobileGreetingHeartbeat) mobileGreetingHeartbeat.textContent = "Offline";
 }
 
 
@@ -1003,9 +1036,47 @@ function showCalibrationAlert(message, type) {
 
 function initNavigation() {
     const navItems = document.querySelectorAll(".nav-item");
+    const bottomNavItems = document.querySelectorAll(".bottom-nav-item[data-view]");
     const viewSections = document.querySelectorAll(".view-section");
     const pageTitle = document.getElementById("pageTitle");
     const pageSubtitle = document.getElementById("pageSubtitle");
+
+    // Drawer controls
+    const appSidebar = document.getElementById("appSidebar");
+    const drawerBackdrop = document.getElementById("drawerBackdrop");
+    const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+    const drawerCloseBtn = document.getElementById("drawerCloseBtn");
+    const bottomMoreBtn = document.getElementById("bottomMoreBtn");
+
+    function openMobileDrawer() {
+        if (appSidebar) appSidebar.classList.add("open");
+        if (drawerBackdrop) drawerBackdrop.classList.add("active");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeMobileDrawer() {
+        if (appSidebar) appSidebar.classList.remove("open");
+        if (drawerBackdrop) drawerBackdrop.classList.remove("active");
+        document.body.style.overflow = "";
+    }
+
+    function toggleMobileDrawer() {
+        if (appSidebar && appSidebar.classList.contains("open")) {
+            closeMobileDrawer();
+        } else {
+            openMobileDrawer();
+        }
+    }
+
+    if (mobileMenuBtn) mobileMenuBtn.addEventListener("click", toggleMobileDrawer);
+    if (drawerCloseBtn) drawerCloseBtn.addEventListener("click", closeMobileDrawer);
+    if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeMobileDrawer);
+    if (bottomMoreBtn) {
+        bottomMoreBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            toggleMobileDrawer();
+        });
+    }
 
     const viewTitles = {
         dashboard: {
@@ -1034,39 +1105,74 @@ function initNavigation() {
         }
     };
 
+    function switchView(viewKey) {
+        if (!viewKey) return;
+
+        // Sync sidebar items
+        navItems.forEach(n => {
+            if (n.getAttribute("data-view") === viewKey) {
+                n.classList.add("active");
+            } else {
+                n.classList.remove("active");
+            }
+        });
+
+        // Sync bottom nav items
+        bottomNavItems.forEach(b => {
+            if (b.getAttribute("data-view") === viewKey) {
+                b.classList.add("active");
+            } else {
+                b.classList.remove("active");
+            }
+        });
+
+        // Show corresponding section
+        viewSections.forEach(section => {
+            if (section.id === `view-${viewKey}`) {
+                section.classList.add("active");
+            } else {
+                section.classList.remove("active");
+            }
+        });
+
+        // Update header text
+        if (viewTitles[viewKey]) {
+            if (pageTitle) pageTitle.textContent = viewTitles[viewKey].title;
+            if (pageSubtitle) pageSubtitle.textContent = viewTitles[viewKey].sub;
+        }
+
+        // Close drawer on mobile if open
+        closeMobileDrawer();
+
+        // Scroll to top of content for clean view transition
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        // Trigger specific view loaders
+        if (viewKey === "analytics") loadAnalyticsData();
+        if (viewKey === "history") loadHistoryTable();
+        if (viewKey === "device") loadCalibrationSettings();
+        if (viewKey === "growth") {
+            const dist = currentTelemetry.distance_cm ?? currentTelemetry.distanceCm;
+            const hgt = currentTelemetry.plant_height_cm ?? currentTelemetry.plantHeightCm;
+            updateDistanceAndHeightDisplay(dist, hgt);
+        }
+    }
+
+    // Attach click listeners to sidebar nav items
     navItems.forEach(item => {
         item.addEventListener("click", (e) => {
             e.preventDefault();
             const viewKey = item.getAttribute("data-view");
+            switchView(viewKey);
+        });
+    });
 
-            // Update active nav class
-            navItems.forEach(n => n.classList.remove("active"));
-            item.classList.add("active");
-
-            // Show corresponding section
-            viewSections.forEach(section => {
-                if (section.id === `view-${viewKey}`) {
-                    section.classList.add("active");
-                } else {
-                    section.classList.remove("active");
-                }
-            });
-
-            // Update header text
-            if (viewTitles[viewKey]) {
-                if (pageTitle) pageTitle.textContent = viewTitles[viewKey].title;
-                if (pageSubtitle) pageSubtitle.textContent = viewTitles[viewKey].sub;
-            }
-
-            // Trigger specific view loaders
-            if (viewKey === "analytics") loadAnalyticsData();
-            if (viewKey === "history") loadHistoryTable();
-            if (viewKey === "device") loadCalibrationSettings();
-            if (viewKey === "growth") {
-                const dist = currentTelemetry.distance_cm ?? currentTelemetry.distanceCm;
-                const hgt = currentTelemetry.plant_height_cm ?? currentTelemetry.plantHeightCm;
-                updateDistanceAndHeightDisplay(dist, hgt);
-            }
+    // Attach click listeners to bottom nav items
+    bottomNavItems.forEach(bItem => {
+        bItem.addEventListener("click", (e) => {
+            e.preventDefault();
+            const viewKey = bItem.getAttribute("data-view");
+            switchView(viewKey);
         });
     });
 
@@ -1212,16 +1318,32 @@ function escapeHtml(str) {
 }
 
 
+function updateGreeting() {
+    const hour = new Date().getHours();
+    let greeting = "Good Morning 🌱";
+    if (hour >= 12 && hour < 17) {
+        greeting = "Good Afternoon 🌱";
+    } else if (hour >= 17 || hour < 5) {
+        greeting = "Good Evening 🌱";
+    }
+    const el = document.getElementById("mobileGreetingText");
+    if (el) el.textContent = greeting;
+}
+
+
 // =====================================================================
 // INITIALIZATION & POLLING CYCLES
 // =====================================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // 0. Set dynamic time-of-day greeting
+    updateGreeting();
+
     // 1. Load central calibration configuration
     await loadSystemConfig();
     await loadCalibrationSettings();
 
-    // 2. Initialize Tab Navigation and Event Handlers
+    // 2. Initialize Tab Navigation, Drawer, and Event Handlers
     initNavigation();
 
     // 3. Initial Data Fetch

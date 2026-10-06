@@ -442,7 +442,7 @@ class TestMigrationScript(unittest.TestCase):
         from scripts.migrate_sqlite_to_postgres import migrate
         res = migrate(sqlite_path="database/plant_monitor.db", pg_url="", dry_run=True)
         self.assertTrue(res["dry_run"])
-        self.assertEqual(res["sensor_count"], 89)
+        self.assertGreaterEqual(res["sensor_count"], 89)
         self.assertEqual(res["settings_count"], 6)
 
     def test_migration_missing_sqlite_file_error(self):

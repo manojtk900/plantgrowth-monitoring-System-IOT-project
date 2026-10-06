@@ -6,7 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plant Growth & Environmental Monitor | ESP32</title>
     <meta name="description" content="Precision agriculture IoT dashboard for monitoring relative soil moisture, temperature, and plant height growth using ESP32 edge telemetry.">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2.2">
+    <meta name="theme-color" content="#0c2419">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PlantMonitor">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🌱</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -16,14 +22,20 @@
 
 <div class="app-layout">
 
-    <!-- ================= SIDEBAR NAVIGATION ================= -->
-    <aside class="sidebar">
+    <!-- BACKDROP OVERLAY FOR MOBILE NAVIGATION DRAWER -->
+    <div id="drawerBackdrop" class="drawer-backdrop"></div>
+
+    <!-- ================= SIDEBAR NAVIGATION (DRAWER ON MOBILE) ================= -->
+    <aside id="appSidebar" class="sidebar">
         <div class="logo">
-            <span class="logo-icon">🌱</span>
-            <div class="logo-text">
-                <strong>Plant Monitor</strong>
-                <span class="logo-sub">IoT Precision Ag</span>
+            <div class="logo-main">
+                <span class="logo-icon">🌱</span>
+                <div class="logo-text">
+                    <strong>Plant Monitor</strong>
+                    <span class="logo-sub">IoT Precision Ag</span>
+                </div>
             </div>
+            <button id="drawerCloseBtn" class="drawer-close-btn" type="button" aria-label="Close Navigation Drawer">&times;</button>
         </div>
 
         <nav class="nav-menu">
@@ -59,7 +71,24 @@
     <!-- ================= MAIN CONTENT AREA ================= -->
     <main class="main-content">
 
-        <!-- HEADER -->
+        <!-- MOBILE TOP APP BAR (DISPLAYED ON MOBILE SCREENS ONLY) -->
+        <div class="mobile-top-bar">
+            <button id="mobileMenuBtn" class="mobile-hamburger-btn" type="button" aria-label="Open Navigation Menu">
+                <span class="hamburger-bar"></span>
+                <span class="hamburger-bar"></span>
+                <span class="hamburger-bar"></span>
+            </button>
+            <div class="mobile-brand">
+                <span class="mobile-brand-icon">🌱</span>
+                <span class="mobile-brand-title">Plant Monitor</span>
+            </div>
+            <div id="mobileLivePill" class="mobile-live-pill online">
+                <span class="mobile-live-dot"></span>
+                <span id="mobileConnectionText">LIVE</span>
+            </div>
+        </div>
+
+        <!-- DESKTOP / TABLET HEADER -->
         <header class="top-header">
             <div>
                 <h1 id="pageTitle">Environmental Monitoring Dashboard</h1>
@@ -92,6 +121,19 @@
 
         <!-- ================= VIEW 1: DASHBOARD (DEFAULT) ================= -->
         <div id="view-dashboard" class="view-section active">
+
+            <!-- MOBILE APP GREETING & STATUS BANNER -->
+            <div class="mobile-hero-greeting">
+                <div class="greeting-text-group">
+                    <h2 id="mobileGreetingText">Good Morning 🌱</h2>
+                    <div class="greeting-node-line">
+                        <span class="pulse-dot-sm"></span>
+                        <span id="mobileGreetingNode">ESP32_003</span>
+                        <span class="greeting-divider">•</span>
+                        <span id="mobileGreetingHeartbeat">LIVE Telemetry</span>
+                    </div>
+                </div>
+            </div>
 
             <!-- HERO SENSOR GRID (Includes Liquid Fill Tank) -->
             <section class="sensor-grid">
@@ -245,6 +287,23 @@
                     <div class="sensor-main-stat">
                         <span id="heightValue" class="stat-number accent-green">--</span>
                         <span class="stat-unit">cm</span>
+                    </div>
+
+                    <!-- Mini Animated Digital Plant Visualizer -->
+                    <div class="mini-plant-visual" aria-hidden="true">
+                        <div class="mini-plant-sky">
+                            <span class="mini-transducer-dot" title="Ultrasonic 30.0 cm Mount Baseline">▼ 30cm Datum</span>
+                        </div>
+                        <div class="mini-plant-stage">
+                            <div id="miniPlantStem" class="mini-plant-stem" style="height: 50%;">
+                                <div class="mini-stem-foliage">
+                                    <span class="mini-leaf leaf-l">🌿</span>
+                                    <span class="mini-leaf leaf-r">🌿</span>
+                                    <span class="mini-leaf leaf-t">🌱</span>
+                                </div>
+                            </div>
+                            <div class="mini-soil-base">SOIL</div>
+                        </div>
                     </div>
 
                     <div class="growth-delta-box">
@@ -526,22 +585,81 @@
                 </div>
 
                 <div class="growth-diagram-grid">
-                    <!-- Gantry Visualization -->
+                    <!-- Gantry Visualization with Animated Digital Plant -->
                     <div class="gantry-visual-card">
-                        <h3>Ultrasonic Measurement Geometry</h3>
+                        <div class="gantry-header-row">
+                            <h3>Ultrasonic Canopy Profiler</h3>
+                            <span class="gantry-datum-tag">30.0 cm Datum</span>
+                        </div>
                         <div class="gantry-rig">
+                            <!-- Vertical Measurement Ruler -->
+                            <div class="rig-ruler-scale" aria-hidden="true">
+                                <span>30cm</span>
+                                <span>25cm</span>
+                                <span>20cm</span>
+                                <span>15cm</span>
+                                <span>10cm</span>
+                                <span>5cm</span>
+                                <span>0cm</span>
+                            </div>
+
+                            <!-- Ultrasonic Sensor Emitter Head -->
                             <div class="rig-sensor-bar">
-                                <span class="rig-label">HC-SR04 Transducer (Reference: 30.0 cm)</span>
+                                <div class="sensor-emitter-eyes">
+                                    <span class="transducer-eye">◉</span>
+                                    <span class="transducer-eye">◉</span>
+                                </div>
+                                <span class="rig-label">HC-SR04 Transducer (GPIO 5 / GPIO 18)</span>
                             </div>
+
+                            <!-- Air Gap & Sonic Ranging Beam -->
                             <div class="rig-gap-zone">
-                                <span id="rigDistanceText">Distance: -- cm</span>
+                                <div class="sonic-pulse-rays">
+                                    <span class="sonic-wave-line"></span>
+                                    <span class="sonic-wave-line"></span>
+                                    <span class="sonic-wave-line"></span>
+                                </div>
+                                <div class="rig-distance-pill">
+                                    <span id="rigDistanceText">Distance: -- cm</span>
+                                </div>
                             </div>
+
+                            <!-- Animated Digital Plant Canopy -->
                             <div id="rigCanopyZone" class="rig-plant-canopy" style="height: 50%;">
-                                <div class="canopy-leaves">🌿 🌿 🌿</div>
-                                <span id="rigHeightText">Plant Height: -- cm</span>
+                                <div class="canopy-indicator-pill">
+                                    <span id="rigHeightText">Plant Height: -- cm</span>
+                                </div>
+                                <!-- Digital Plant SVG with Swaying Leaves -->
+                                <div class="digital-plant-visual">
+                                    <svg class="digital-plant-svg" viewBox="0 0 160 220" preserveAspectRatio="xMidYMax meet">
+                                        <!-- Root Crown -->
+                                        <path d="M70 218 Q80 205 90 218" stroke="#166534" stroke-width="5" fill="none" stroke-linecap="round" />
+                                        <!-- Central Stem -->
+                                        <path class="plant-stem-path" d="M80 220 L80 25" stroke="#15803d" stroke-width="6" stroke-linecap="round" />
+                                        <!-- Bottom Leaves (gentle sway) -->
+                                        <g class="plant-leaf-group sway-slow">
+                                            <path d="M80 180 C50 175 35 160 30 145 C50 145 68 165 80 175" fill="#22c55e" stroke="#15803d" stroke-width="1.5" />
+                                            <path d="M80 170 C110 165 125 150 130 135 C110 135 92 155 80 165" fill="#16a34a" stroke="#15803d" stroke-width="1.5" />
+                                        </g>
+                                        <!-- Mid Leaves (gentle sway) -->
+                                        <g class="plant-leaf-group sway-mid">
+                                            <path d="M80 125 C45 115 32 95 28 80 C50 80 68 105 80 120" fill="#4ade80" stroke="#15803d" stroke-width="1.5" />
+                                            <path d="M80 115 C115 105 128 85 132 70 C110 70 92 95 80 110" fill="#22c55e" stroke="#15803d" stroke-width="1.5" />
+                                        </g>
+                                        <!-- Top Canopy Leaf Bud -->
+                                        <g class="plant-leaf-group sway-top">
+                                            <path d="M80 50 C62 35 58 18 68 5 C76 18 78 38 80 46" fill="#86efac" stroke="#16a34a" stroke-width="1.5" />
+                                            <path d="M80 50 C98 35 102 18 92 5 C84 18 82 38 80 46" fill="#4ade80" stroke="#16a34a" stroke-width="1.5" />
+                                            <circle cx="80" cy="12" r="4.5" fill="#bef264" />
+                                        </g>
+                                    </svg>
+                                </div>
                             </div>
+
+                            <!-- Soil Baseline Bed -->
                             <div class="rig-soil-surface">
-                                <span>Soil Baseline Surface (0.0 cm)</span>
+                                <span class="soil-icon">🌱</span>
+                                <span>Soil Baseline Surface (0.0 cm Datum)</span>
                             </div>
                         </div>
                     </div>
@@ -988,13 +1106,33 @@
 
     </main>
 
+    <!-- ================= MOBILE BOTTOM NAVIGATION (FIXED BAR) ================= -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-item active" data-view="dashboard" type="button">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Home</span>
+        </button>
+        <button class="bottom-nav-item" data-view="growth" type="button">
+            <span class="bottom-nav-icon">🌱</span>
+            <span class="bottom-nav-label">Growth</span>
+        </button>
+        <button class="bottom-nav-item" data-view="analytics" type="button">
+            <span class="bottom-nav-icon">📊</span>
+            <span class="bottom-nav-label">Analytics</span>
+        </button>
+        <button id="bottomMoreBtn" class="bottom-nav-item" type="button">
+            <span class="bottom-nav-icon">☰</span>
+            <span class="bottom-nav-label">More</span>
+        </button>
+    </nav>
+
 </div>
 
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- Main Client Application Controller -->
-<script src="{{ url_for('static', filename='app.js') }}?v=2.3"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=3.0"></script>
 
 </body>
 </html>
