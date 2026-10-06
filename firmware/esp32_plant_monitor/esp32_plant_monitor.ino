@@ -3,7 +3,8 @@
  * Edge Node Firmware — ESP32 DevKit V1 (Device ID: ESP32_003)
  * 
  * Features:
- *   - Multi-Wi-Fi fallback (WiFiMulti with 3 credential slots)
+ *   - NVS Wi-Fi Provisioning via Web Portal (Preferences + SoftAP + WebServer)
+ *   - Multi-Wi-Fi fallback (WiFiMulti with 3 persistent NVS credential slots)
  *   - Dual-destination telemetry (Render Cloud HTTPS first, local Flask LAN fallback)
  *   - Strict TLS validation (Google Trust Services GTS Root R4 + ISRG Root X1 CA)
  *   - SNTP time synchronization for certificate validity
@@ -18,6 +19,9 @@
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <Preferences.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <ArduinoJson.h>
@@ -41,25 +45,23 @@ const char* DEVICE_ID = "ESP32_003";
 const float SENSOR_MOUNT_HEIGHT_CM = 30.0;
 const unsigned long TRANSMISSION_INTERVAL_MS = 10000;
 
-// 2. Wi-Fi & Destination Endpoints
-struct WiFiCredential {
-    const char* ssid;
-    const char* password;
-};
+// 2. Provisioning & NVS Preferences
+Preferences prefs;
+WebServer setupServer(80);
+DNSServer dnsServer;
+bool inSetupPortalMode = false;
+unsigned long portalStartTime = 0;
+const unsigned long PORTAL_TIMEOUT_MS = 180000; // 3 minutes portal timeout
 
-// Slot 1 is default; slots 2 and 3 are optional fallbacks
-const WiFiCredential WIFI_NETWORKS[3] = {
-    {"manojtk", "manojtk900"}, // 1. DEFAULT — preferred
-    {"", ""},                  // 2. Optional fallback
-    {"", ""}                   // 3. Optional fallback
-};
+// Default Wi-Fi (Baked-in default for Slot 1)
+const char* DEFAULT_SSID_1 = "manojtk";
+const char* DEFAULT_PASS_1 = "manojtk900";
 
+// 3. Server Endpoints & TLS Root Certificates
 const char* CLOUD_SERVER_URL = "https://plantgrowth-monitoring-system-iot-project.onrender.com/api/sensor-data";
 const char* LOCAL_SERVER_URL = "http://10.61.173.131:5000/api/sensor-data";
 const int HTTP_TIMEOUT_MS = 15000;
 
-// 3. TLS Root Certificates
-// Bundle containing GTS Root R4 (Render *.onrender.com root) and ISRG Root X1 (Let's Encrypt)
 const char* ROOT_CA_BUNDLE = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD\n" \
@@ -102,7 +104,7 @@ const char* ROOT_CA_BUNDLE = \
 "jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc\n" \
 "oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq\n" \
 "4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA\n" \
-"mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d\n" \
+"mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d\n"
 "emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=\n" \
 "-----END CERTIFICATE-----\n";
 
@@ -114,13 +116,14 @@ DallasTemperature tempSensors(&oneWire);
 unsigned long lastTransmissionTime = 0;
 bool sntpSynchronized = false;
 int consecutiveFaultCycles = 0;
-const int FAULT_THRESHOLD = 2; // Require 2 consecutive failed reading cycles before red fault blink
+const int FAULT_THRESHOLD = 2;
 
 enum LEDIndicatorState {
-    LED_STATE_STARTUP_OFF,     // Startup default: Both LEDs OFF until first valid reading
+    LED_STATE_STARTUP_OFF,     // Startup default: Both LEDs OFF
     LED_STATE_GREEN_FAVORABLE, // Green Steady: Moisture >= 40% AND Temp < 30°C AND sensors valid
-    LED_STATE_RED_ATTENTION,   // Red Steady: Moisture < 40% OR (Moisture < 50% AND Temp >= 30°C)
-    LED_STATE_RED_FAULT_BLINK  // Red Blink: Persistent hardware sensor fault
+    LED_STATE_RED_ATTENTION,   // Red Steady: Moisture < 40% OR heat stress
+    LED_STATE_RED_FAULT_BLINK, // Red Blink: Persistent hardware sensor fault
+    LED_STATE_SETUP_PORTAL     // Alternating Green/Red Blink: Provisioning portal active
 };
 
 LEDIndicatorState currentLEDState = LED_STATE_STARTUP_OFF;
@@ -138,7 +141,11 @@ struct SensorTelemetry {
 };
 
 // Forward Declarations
-void connectToBestWiFi();
+void loadSavedWiFiCredentials();
+bool connectToConfiguredWiFi();
+void startSetupPortal();
+void handlePortalRoot();
+void handlePortalSave();
 void syncNTPTime();
 SensorTelemetry collectSensorData();
 float calculateLocalMoisturePercent(float raw);
@@ -165,7 +172,7 @@ void setup() {
     digitalWrite(PIN_TRIG, LOW);
     pinMode(PIN_ECHO, INPUT);
 
-    // Initialize Optional Visual Indicator LEDs (Zero-dependency outputs)
+    // Initialize Optional Visual Indicator LEDs
     pinMode(PIN_LED_GREEN, OUTPUT);
     pinMode(PIN_LED_RED, OUTPUT);
     digitalWrite(PIN_LED_GREEN, LOW);
@@ -175,26 +182,51 @@ void setup() {
     tempSensors.begin();
     tempSensors.setResolution(11);
 
-    // Register configured Wi-Fi networks (skipping empty slots cleanly)
-    Serial.println("Configuring Wi-Fi Credentials:");
-    for (int i = 0; i < 3; i++) {
-        if (strlen(WIFI_NETWORKS[i].ssid) > 0) {
-            wifiMulti.addAP(WIFI_NETWORKS[i].ssid, WIFI_NETWORKS[i].password);
-            Serial.printf(" [%d] %s (registered)\n", i + 1, WIFI_NETWORKS[i].ssid);
-        } else {
-            Serial.printf(" [%d] (empty slot - skipped)\n", i + 1);
-        }
-    }
+    // Open NVS Preferences namespace
+    prefs.begin("plant_wifi", false);
 
-    connectToBestWiFi();
-    syncNTPTime();
+    // Load credentials from NVS into WiFiMulti
+    loadSavedWiFiCredentials();
+
+    // Attempt connecting to saved Wi-Fi networks
+    if (!connectToConfiguredWiFi()) {
+        Serial.println("[!] No saved Wi-Fi network reachable.");
+        Serial.println("[*] Entering Provisioning Mode: Broadcasting Setup Portal...");
+        startSetupPortal();
+    } else {
+        syncNTPTime();
+    }
 }
 
 // 6. Main Loop
 void loop() {
+    // A. Provisioning Portal Mode
+    if (inSetupPortalMode) {
+        dnsServer.processNextRequest();
+        setupServer.handleClient();
+
+        // Distinctive alternating visual cue on LEDs during setup mode
+        unsigned long now = millis();
+        if (now - lastLEDBlinkToggle >= 300) {
+            lastLEDBlinkToggle = now;
+            ledBlinkToggleState = !ledBlinkToggleState;
+            digitalWrite(PIN_LED_GREEN, ledBlinkToggleState ? HIGH : LOW);
+            digitalWrite(PIN_LED_RED, ledBlinkToggleState ? LOW : HIGH);
+        }
+
+        // Automatic timeout to re-attempt saved networks
+        if (now - portalStartTime > PORTAL_TIMEOUT_MS) {
+            Serial.println("[*] Portal timeout reached. Retrying saved Wi-Fi networks...");
+            ESP.restart();
+        }
+        delay(10);
+        return;
+    }
+
+    // B. Normal Telemetry Mode
     unsigned long currentMillis = millis();
 
-    // Maintain non-blocking LED blink service
+    // Maintain non-blocking LED blink service (if fault alert active)
     serviceLEDBlink();
 
     // Telemetry transmission cycle
@@ -203,7 +235,11 @@ void loop() {
 
         if (wifiMulti.run() != WL_CONNECTED) {
             Serial.println("[!] Wi-Fi disconnected. Reconnecting via WiFiMulti...");
-            connectToBestWiFi();
+            if (!connectToConfiguredWiFi()) {
+                Serial.println("[!] Connection failed. Launching setup portal...");
+                startSetupPortal();
+                return;
+            }
         }
 
         if (!sntpSynchronized && WiFi.status() == WL_CONNECTED) {
@@ -216,10 +252,173 @@ void loop() {
         transmitTelemetry(telemetry);
     }
 
-    delay(20); // Responsive tick for smooth non-blocking blinking
+    delay(20);
 }
 
-// 7. Sensor Acquisition
+// 7. Wi-Fi Management & NVS Provisioning
+void loadSavedWiFiCredentials() {
+    // Slot 1: Default preferred network (defaults to manojtk)
+    String s1 = prefs.getString("ssid1", DEFAULT_SSID_1);
+    String p1 = prefs.getString("pass1", DEFAULT_PASS_1);
+    // Slot 2: Optional saved network
+    String s2 = prefs.getString("ssid2", "");
+    String p2 = prefs.getString("pass2", "");
+    // Slot 3: Optional saved network
+    String s3 = prefs.getString("ssid3", "");
+    String p3 = prefs.getString("pass3", "");
+
+    Serial.println("Registered Wi-Fi Networks (NVS):");
+    if (s1.length() > 0) {
+        wifiMulti.addAP(s1.c_str(), p1.c_str());
+        Serial.printf(" [Slot 1] %s (Default/Active)\n", s1.c_str());
+    }
+    if (s2.length() > 0) {
+        wifiMulti.addAP(s2.c_str(), p2.c_str());
+        Serial.printf(" [Slot 2] %s (Saved)\n", s2.c_str());
+    }
+    if (s3.length() > 0) {
+        wifiMulti.addAP(s3.c_str(), p3.c_str());
+        Serial.printf(" [Slot 3] %s (Saved)\n", s3.c_str());
+    }
+}
+
+bool connectToConfiguredWiFi() {
+    Serial.print("[*] Connecting to available Wi-Fi");
+    int attempts = 0;
+    while (wifiMulti.run() != WL_CONNECTED && attempts < 25) {
+        delay(400);
+        Serial.print(".");
+        attempts++;
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.printf("Connected: %s (IP: %s, RSSI: %d dBm)\n",
+                      WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
+        return true;
+    }
+    return false;
+}
+
+void startSetupPortal() {
+    inSetupPortalMode = true;
+    currentLEDState = LED_STATE_SETUP_PORTAL;
+    portalStartTime = millis();
+
+    WiFi.disconnect(true);
+    delay(100);
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP("ESP32-PlantMonitor-Setup");
+    delay(500);
+
+    IPAddress apIP = WiFi.softAPIP();
+    dnsServer.start(53, "*", apIP);
+
+    setupServer.on("/", handlePortalRoot);
+    setupServer.on("/save", HTTP_POST, handlePortalSave);
+    setupServer.onNotFound(handlePortalRoot);
+    setupServer.begin();
+
+    Serial.println("\n========================================");
+    Serial.println(" Wi-Fi Setup Portal Active!");
+    Serial.println(" 1. Connect phone/laptop to Wi-Fi:");
+    Serial.println("    SSID: ESP32-PlantMonitor-Setup (No password)");
+    Serial.printf (" 2. Open Browser: http://%s\n", apIP.toString().c_str());
+    Serial.println("========================================\n");
+}
+
+void handlePortalRoot() {
+    String s1 = prefs.getString("ssid1", DEFAULT_SSID_1);
+    String s2 = prefs.getString("ssid2", "(None)");
+    String s3 = prefs.getString("ssid3", "(None)");
+
+    // Scan for nearby Wi-Fi networks
+    int n = WiFi.scanNetworks();
+    String scanOptions = "";
+    if (n > 0) {
+        for (int i = 0; i < n; ++i) {
+            String ssid = WiFi.SSID(i);
+            int rssi = WiFi.RSSI(i);
+            scanOptions += "<option value='" + ssid + "'>" + ssid + " (" + String(rssi) + " dBm)</option>";
+        }
+    } else {
+        scanOptions = "<option value=''>No networks detected</option>";
+    }
+
+    String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>ESP32 Plant Monitor Setup</title>"
+        "<style>"
+        "body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#f8fafc;padding:20px;margin:0;display:flex;justify-content:center;}"
+        ".card{background:#1e293b;border-radius:12px;padding:24px;max-width:400px;width:100%;box-shadow:0 10px 25px rgba(0,0,0,0.5);border:1px solid #334155;}"
+        "h2{color:#10b981;margin-top:0;font-size:20px;display:flex;align-items:center;gap:8px;}"
+        ".badge{background:#064e3b;color:#34d399;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:600;}"
+        "label{display:block;font-size:13px;color:#94a3b8;margin-top:14px;margin-bottom:6px;font-weight:500;}"
+        "select,input{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f8fafc;font-size:14px;box-sizing:border-box;}"
+        "select:focus,input:focus{outline:none;border-color:#10b981;}"
+        "button{width:100%;background:#10b981;color:#0f172a;font-weight:700;border:none;padding:12px;border-radius:8px;font-size:15px;margin-top:20px;cursor:pointer;}"
+        "button:hover{background:#059669;}"
+        ".saved{background:#0f172a;border-radius:8px;padding:12px;margin-top:16px;font-size:13px;border:1px solid #334155;}"
+        ".saved div{margin-bottom:4px;color:#cbd5e1;}"
+        ".saved span{color:#10b981;font-weight:600;}"
+        "</style></head><body>"
+        "<div class='card'>"
+        "<h2>🌱 ESP32 Plant Monitor <span class='badge'>Device: ESP32_003</span></h2>"
+        "<div class='saved'>"
+        "<strong>Currently Saved Networks:</strong>"
+        "<div>Slot 1: <span>" + s1 + "</span></div>"
+        "<div>Slot 2: <span>" + s2 + "</span></div>"
+        "<div>Slot 3: <span>" + s3 + "</span></div>"
+        "</div>"
+        "<form method='POST' action='/save'>"
+        "<label>Select Scanned Network:</label>"
+        "<select onchange='if(this.value)document.getElementById(\"c_ssid\").value=this.value;'>"
+        "<option value=''>-- Select detected Wi-Fi --</option>" + scanOptions + "</select>"
+        "<label>Or Enter SSID Manually:</label>"
+        "<input type='text' id='c_ssid' name='ssid' placeholder='Wi-Fi Name (SSID)' required>"
+        "<label>Password:</label>"
+        "<input type='password' name='password' placeholder='Wi-Fi Password'>"
+        "<label>Save to Slot:</label>"
+        "<select name='slot'>"
+        "<option value='2' selected>Slot 2 (College / Secondary Wi-Fi)</option>"
+        "<option value='3'>Slot 3 (Hotspot / Alternate)</option>"
+        "<option value='1'>Slot 1 (Override Default 'manojtk')</option>"
+        "</select>"
+        "<button type='submit'>💾 Save Credentials & Connect</button>"
+        "</form></div></body></html>";
+
+    setupServer.send(200, "text/html", html);
+}
+
+void handlePortalSave() {
+    if (setupServer.hasArg("ssid")) {
+        String newSSID = setupServer.arg("ssid");
+        String newPass = setupServer.arg("password");
+        int slot = setupServer.hasArg("slot") ? setupServer.arg("slot").toInt() : 2;
+        if (slot < 1 || slot > 3) slot = 2;
+
+        String keyS = "ssid" + String(slot);
+        String keyP = "pass" + String(slot);
+        prefs.putString(keyS.c_str(), newSSID);
+        prefs.putString(keyP.c_str(), newPass);
+
+        String resp = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<style>body{font-family:system-ui;background:#0f172a;color:#f8fafc;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}"
+            ".card{background:#1e293b;padding:30px;border-radius:12px;text-align:center;border:1px solid #10b981;}</style></head>"
+            "<body><div class='card'><h2>✅ Wi-Fi Saved!</h2>"
+            "<p>Saved <strong>" + newSSID + "</strong> to Slot " + String(slot) + ".</p>"
+            "<p>Restarting ESP32 and connecting now...</p></div></body></html>";
+
+        setupServer.send(200, "text/html", resp);
+        Serial.printf("\n[+] Saved new Wi-Fi credentials to Slot %d (SSID: %s)!\n", slot, newSSID.c_str());
+        Serial.println("[*] Rebooting ESP32 in 2 seconds...");
+        delay(2000);
+        ESP.restart();
+    } else {
+        setupServer.send(400, "text/plain", "Missing SSID parameter.");
+    }
+}
+
+// 8. Sensor Acquisition
 float readSoilMoistureRaw() {
     long sum = 0;
     const int SAMPLES = 10;
@@ -299,7 +498,7 @@ SensorTelemetry collectSensorData() {
     return data;
 }
 
-// 8. Time Synchronization (SNTP)
+// 9. Time Synchronization (SNTP)
 void syncNTPTime() {
     if (WiFi.status() != WL_CONNECTED) return;
 
@@ -327,25 +526,7 @@ void syncNTPTime() {
     }
 }
 
-// 9. Network & Telemetry Transmission
-void connectToBestWiFi() {
-    Serial.print("[*] Connecting to available Wi-Fi network");
-    int attempts = 0;
-    while (wifiMulti.run() != WL_CONNECTED && attempts < 20) {
-        delay(500);
-        Serial.print(".");
-        attempts++;
-    }
-    Serial.println();
-
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("Connected: %s (IP: %s, RSSI: %d dBm)\n",
-                      WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
-    } else {
-        Serial.println("[!] No configured Wi-Fi network found within range.");
-    }
-}
-
+// 10. Telemetry Transmission
 String buildJsonPayload(const SensorTelemetry &t) {
     StaticJsonDocument<384> doc;
     doc["device_id"] = DEVICE_ID;
@@ -448,7 +629,7 @@ bool postToLocalHTTP(const String &payload) {
     return success;
 }
 
-// 10. Status LED Subsystem (Optional, Non-Blocking)
+// 11. Status LED Subsystem (Optional, Non-Blocking)
 float calculateLocalMoisturePercent(float raw) {
     if (raw >= DRY_RAW_REF) return 0.0;
     if (raw <= WET_RAW_REF) return 100.0;
@@ -492,7 +673,7 @@ void serviceLEDBlink() {
     }
 }
 
-// 11. Serial Monitor Telemetry Display
+// 12. Serial Monitor Telemetry Display
 void printTelemetryBanner(const SensorTelemetry &t) {
     Serial.println("----------------------------------------");
     Serial.printf("Moisture Raw : %.0f ADC (Local Est: %.1f%%)\n", 
@@ -522,6 +703,9 @@ void printTelemetryBanner(const SensorTelemetry &t) {
             break;
         case LED_STATE_RED_FAULT_BLINK:
             Serial.printf("RED BLINKING [Sensor Warning: %d cycles missed]\n", consecutiveFaultCycles);
+            break;
+        case LED_STATE_SETUP_PORTAL:
+            Serial.println("ALTERNATING GREEN/RED [Setup Portal Active]");
             break;
         case LED_STATE_STARTUP_OFF:
         default:
