@@ -2501,3 +2501,122 @@ h1, h2, h3, h4, h5, .logo-text, .stat-number, .score-large-digit {
         animation: none !important;
     }
 }
+
+/* =========================================================
+   FINAL DESKTOP FIT FIX
+   Sidebar + Main Content + Sensor Grid
+   ========================================================= */
+
+/* Slightly smaller desktop sidebar */
+@media (min-width: 1024px) {
+
+    .sidebar {
+        width: 220px !important;
+        min-width: 220px !important;
+    }
+
+    /* Give the main dashboard the remaining screen width */
+    .main-content {
+        margin-left: 220px !important;
+        width: calc(100% - 220px) !important;
+        max-width: calc(100% - 220px) !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+    }
+
+    /* Prevent dashboard content from creating horizontal overflow */
+    .dashboard-content,
+    .content-area,
+    .main-container {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+    }
+
+    /* Sensor cards should fit inside available width */
+    .sensor-grid {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+    }
+
+    /* Prevent individual cards from forcing overflow */
+    .sensor-card {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* All dashboard grids must respect viewport width */
+    .dashboard-grid,
+    .content-grid,
+    .analytics-grid {
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* Prevent long text/device information from expanding cards */
+    .sensor-card *,
+    .dashboard-card *,
+    .analytics-card * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    /* Remove accidental horizontal page scrolling */
+    html,
+    body {
+        overflow-x: hidden !important;
+    }
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (min-width: 769px) and (max-width: 1200px) {
+
+    .sidebar {
+        width: 210px !important;
+        min-width: 210px !important;
+    }
+
+    .main-content {
+        margin-left: 210px !important;
+        width: calc(100% - 210px) !important;
+        max-width: calc(100% - 210px) !important;
+        min-width: 0 !important;
+    }
+
+    .sensor-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+   Keep the new mobile drawer/app design untouched
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    html,
+    body {
+        overflow-x: hidden !important;
+        width: 100%;
+    }
+
+    .sidebar {
+        width: 260px !important;
+        max-width: 85vw;
+    }
+
+    .main-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+    }
+}
