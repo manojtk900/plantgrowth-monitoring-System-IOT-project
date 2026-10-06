@@ -525,6 +525,43 @@ def calculate_plant_condition_score(moisture_percent, temperature_c, drying_risk
 
 
 # =====================================================================
+# TIMESTAMP PARSING & NORMALIZATION
+# =====================================================================
+
+def parse_iso_timestamp(ts_input):
+    """
+    Safely parses an ISO timestamp string or datetime object into a UTC-aware datetime.
+    Supports:
+      - Naive SQLite timestamps: '2026-10-05T17:32:46' or '2026-10-05 17:32:46'
+      - Aware PostgreSQL timestamps: '2026-10-05T17:32:46+00:00'
+      - UTC Z timestamps: '2026-10-05T17:32:46Z'
+      - Existing datetime objects (both naive and aware)
+    Returns:
+      UTC-aware datetime or None if invalid.
+    """
+    if ts_input is None:
+        return None
+    if isinstance(ts_input, datetime):
+        if ts_input.tzinfo is None:
+            return ts_input.replace(tzinfo=timezone.utc)
+        return ts_input.astimezone(timezone.utc)
+
+    s = str(ts_input).strip()
+    if not s:
+        return None
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    s = s.replace(" ", "T")
+    try:
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
+# =====================================================================
 # DEVICE LIVENESS EVALUATION
 # =====================================================================
 
@@ -532,6 +569,8 @@ def evaluate_device_liveness(created_at_str, current_time=None):
     """
     Evaluates hardware liveness by comparing the timestamp of the latest
     ESP32 reading against the server clock.
+    Normalizes all timestamps to UTC-aware datetimes to prevent offset-naive
+    vs offset-aware subtraction errors across SQLite and PostgreSQL.
     """
     if not created_at_str:
         return {
@@ -542,10 +581,8 @@ def evaluate_device_liveness(created_at_str, current_time=None):
             "label": "● OFFLINE"
         }
 
-    try:
-        clean_str = created_at_str.replace("Z", "").replace(" ", "T")
-        reading_dt = datetime.fromisoformat(clean_str)
-    except Exception:
+    reading_dt = parse_iso_timestamp(created_at_str)
+    if not reading_dt:
         return {
             "online": False,
             "state": "OFFLINE",
@@ -554,7 +591,13 @@ def evaluate_device_liveness(created_at_str, current_time=None):
             "label": "● OFFLINE"
         }
 
-    now = current_time or datetime.now()
+    if current_time:
+        now = parse_iso_timestamp(current_time)
+        if not now:
+            now = datetime.now(timezone.utc)
+    else:
+        now = datetime.now(timezone.utc)
+
     diff_seconds = max(0, int((now - reading_dt).total_seconds()))
 
     if diff_seconds < HEARTBEAT_TIMEOUTS["online"]:
@@ -621,9 +664,12 @@ def calculate_trends_and_rates(readings):
     last = readings[-1]
 
     try:
-        t_start = datetime.fromisoformat(first["created_at"].replace(" ", "T"))
-        t_end = datetime.fromisoformat(last["created_at"].replace(" ", "T"))
-        time_span_seconds = max(0, int((t_end - t_start).total_seconds()))
+        t_start = parse_iso_timestamp(first.get("created_at"))
+        t_end = parse_iso_timestamp(last.get("created_at"))
+        if t_start and t_end:
+            time_span_seconds = max(0, int((t_end - t_start).total_seconds()))
+        else:
+            time_span_seconds = 0
     except Exception:
         time_span_seconds = 0
 

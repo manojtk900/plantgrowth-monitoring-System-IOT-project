@@ -493,6 +493,48 @@ class TestSupabaseReadiness(unittest.TestCase):
         self.assertEqual(res_long["plant_growth_rate_cm_per_day"], 0.2)
         self.assertEqual(res_long["growth_rate_label"], "+0.20 cm / day")
 
+    def test_timezone_normalization_liveness(self):
+        """Phase 7B Fix: Verifies evaluate_device_liveness handles both offset-aware and offset-naive timestamps without TypeError."""
+        from calculations import evaluate_device_liveness, parse_iso_timestamp
+        from datetime import datetime, timezone, timedelta
+
+        now_utc = datetime.now(timezone.utc)
+        recent_aware = (now_utc - timedelta(seconds=15)).isoformat()
+        recent_naive = (datetime.now() - timedelta(seconds=15)).strftime("%Y-%m-%d %H:%M:%S")
+        old_aware = "2026-10-05T17:32:46+00:00"
+        old_naive = "2026-10-05 17:32:46"
+        old_z = "2026-10-05T17:32:46Z"
+
+        # 1. Aware timestamp within 15 seconds -> ONLINE
+        res1 = evaluate_device_liveness(recent_aware)
+        self.assertTrue(res1["online"])
+        self.assertEqual(res1["state"], "ONLINE")
+
+        # 2. Naive timestamp within 15 seconds -> ONLINE
+        res2 = evaluate_device_liveness(recent_naive)
+        self.assertTrue(res2["online"])
+        self.assertEqual(res2["state"], "ONLINE")
+
+        # 3. PostgreSQL aware historical timestamp -> OFFLINE (No TypeError)
+        res3 = evaluate_device_liveness(old_aware)
+        self.assertFalse(res3["online"])
+        self.assertEqual(res3["state"], "OFFLINE")
+
+        # 4. SQLite naive historical timestamp -> OFFLINE (No TypeError)
+        res4 = evaluate_device_liveness(old_naive)
+        self.assertFalse(res4["online"])
+        self.assertEqual(res4["state"], "OFFLINE")
+
+        # 5. UTC Z timestamp -> OFFLINE (No TypeError)
+        res5 = evaluate_device_liveness(old_z)
+        self.assertFalse(res5["online"])
+        self.assertEqual(res5["state"], "OFFLINE")
+
+        # 6. Explicit current_time passed as naive while reading is aware
+        res6 = evaluate_device_liveness(old_aware, current_time=datetime.now())
+        self.assertFalse(res6["online"])
+        self.assertEqual(res6["state"], "OFFLINE")
+
 
 if __name__ == "__main__":
     unittest.main()
