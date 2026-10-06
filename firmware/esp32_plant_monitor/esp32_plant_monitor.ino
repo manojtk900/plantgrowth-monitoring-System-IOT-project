@@ -39,12 +39,21 @@
 #include "time.h"
 
 // =====================================================================
-// 1. HARDWARE CONFIGURATION & PIN ASSIGNMENTS (DO NOT CHANGE)
+// 1. HARDWARE CONFIGURATION & PIN ASSIGNMENTS
 // =====================================================================
+// Core Physical Sensors (Existing wiring strictly unchanged)
 #define PIN_SOIL_MOISTURE  34   // ADC1_CH6 (Capacitive sensor analog output)
 #define PIN_ONE_WIRE_BUS    4   // DS18B20 Data line (with 4.7kΩ pull-up to 3.3V)
 #define PIN_TRIG            5   // HC-SR04 Ultrasonic Trigger
 #define PIN_ECHO           18   // HC-SR04 Ultrasonic Echo (via 1kΩ/2kΩ voltage divider)
+
+// Optional Visual Indicators (Plug-and-play indicator layer)
+#define PIN_LED_GREEN      25   // Optional Green LED (via 220Ω resistor to GND)
+#define PIN_LED_RED        26   // Optional Red LED (via 220Ω resistor to GND)
+
+// Moisture Calibration Reference Points (Relative Soil Moisture Index)
+const float DRY_RAW_REF = 3326.0; // Air / Dry Reference (0% RSMI)
+const float WET_RAW_REF = 1520.0; // Water / Wet Reference (100% RSMI)
 
 const char* DEVICE_ID = "ESP32_003";
 const float SENSOR_MOUNT_HEIGHT_CM = 30.0; // Fixed gantry reference height
@@ -127,6 +136,18 @@ DallasTemperature tempSensors(&oneWire);
 unsigned long lastTransmissionTime = 0;
 bool sntpSynchronized = false;
 
+// Optional Visual LED State Machine
+enum LEDIndicatorState {
+    LED_STATE_STARTUP_OFF,     // Startup default: Both LEDs OFF until first valid reading
+    LED_STATE_GREEN_FAVORABLE, // Green Steady: Moisture >= 40% AND Temp < 30°C AND sensors valid
+    LED_STATE_RED_ATTENTION,   // Red Steady: Moisture < 40% OR (Moisture < 50% AND Temp >= 30°C)
+    LED_STATE_RED_FAULT_BLINK  // Red Blink: Hardware sensor fault (DS18B20 or HC-SR04 invalid)
+};
+
+LEDIndicatorState currentLEDState = LED_STATE_STARTUP_OFF;
+unsigned long lastLEDBlinkToggle = 0;
+bool ledBlinkToggleState = false;
+
 // Telemetry Data Struct
 struct SensorTelemetry {
     float moistureRaw;
@@ -137,6 +158,11 @@ struct SensorTelemetry {
     float plantHeightCm;
     const char* status;
 };
+
+// Forward Declarations
+float calculateLocalMoisturePercent(float raw);
+void  updateLEDIndicators(const SensorTelemetry &t);
+void  serviceLEDBlink();
 
 // =====================================================================
 // 6. SETUP ROUTINE
@@ -150,11 +176,18 @@ void setup() {
     Serial.printf (" Device ID: %s\n", DEVICE_ID);
     Serial.println("========================================");
 
-    // Initialize Sensor GPIOs
+    // Initialize Sensor GPIOs (Existing wiring unchanged)
     pinMode(PIN_SOIL_MOISTURE, INPUT);
     pinMode(PIN_TRIG, OUTPUT);
     digitalWrite(PIN_TRIG, LOW);
     pinMode(PIN_ECHO, INPUT);
+
+    // Initialize Optional Visual Indicator LEDs (Zero-dependency outputs)
+    // Both start explicitly OFF until the first valid sensor acquisition cycle
+    pinMode(PIN_LED_GREEN, OUTPUT);
+    pinMode(PIN_LED_RED, OUTPUT);
+    digitalWrite(PIN_LED_GREEN, LOW);
+    digitalWrite(PIN_LED_RED, LOW);
 
     // Initialize DS18B20 Temperature Sensor
     tempSensors.begin();
@@ -180,6 +213,9 @@ void setup() {
 void loop() {
     unsigned long currentMillis = millis();
 
+    // Maintain non-blocking LED blink service (if in sensor fault alert state)
+    serviceLEDBlink();
+
     // Check transmission schedule
     if (currentMillis - lastTransmissionTime >= TRANSMISSION_INTERVAL_MS || lastTransmissionTime == 0) {
         lastTransmissionTime = currentMillis;
@@ -198,6 +234,9 @@ void loop() {
         // Read all physical sensors
         SensorTelemetry telemetry = collectSensorData();
 
+        // Update optional visual LED indicators based on sensor telemetry
+        updateLEDIndicators(telemetry);
+
         // Display readings on Serial Monitor
         printTelemetryBanner(telemetry);
 
@@ -205,7 +244,7 @@ void loop() {
         transmitTelemetry(telemetry);
     }
 
-    delay(100);
+    delay(20); // Responsive 20ms tick for smooth non-blocking LED blinking
 }
 
 // =====================================================================
@@ -497,24 +536,113 @@ bool postToLocalHTTP(const String &payload) {
     return success;
 }
 
+// =====================================================================
+// 11. OPTIONAL STATUS LED INDICATOR SUBSYSTEM
+// =====================================================================
+
+/**
+ * Calculates local Relative Soil Moisture Index estimate (%) for indicator logic.
+ * Note: Authoritative calibrated value is still computed by backend / Cloud API.
+ */
+float calculateLocalMoisturePercent(float raw) {
+    if (raw >= DRY_RAW_REF) return 0.0;
+    if (raw <= WET_RAW_REF) return 100.0;
+    float pct = ((DRY_RAW_REF - raw) / (DRY_RAW_REF - WET_RAW_REF)) * 100.0;
+    if (pct < 0.0) return 0.0;
+    if (pct > 100.0) return 100.0;
+    return pct;
+}
+
+/**
+ * Updates optional LED visual status indicator.
+ * Purely non-blocking; zero dependency on physical presence of LEDs.
+ * 
+ * Logic rules:
+ * - RED BLINK: Genuine sensor fault (DS18B20 invalid OR HC-SR04 invalid)
+ * - GREEN STEADY: Moisture >= 40% AND Temp < 30°C AND all sensors valid
+ * - RED STEADY: Moisture < 40% OR (Moisture < 50% AND Temp >= 30°C)
+ */
+void updateLEDIndicators(const SensorTelemetry &t) {
+    // 1. Check for genuine hardware sensor fault -> RED BLINK
+    if (!t.temperatureValid || !t.distanceValid) {
+        currentLEDState = LED_STATE_RED_FAULT_BLINK;
+        digitalWrite(PIN_LED_GREEN, LOW);
+        return;
+    }
+
+    // 2. Compute local moisture index for plant environment evaluation
+    float moisturePct = calculateLocalMoisturePercent(t.moistureRaw);
+
+    // 3. Favorable environment: Moisture >= 40% AND Temp < 30°C -> GREEN
+    if (moisturePct >= 40.0 && t.temperatureC < 30.0) {
+        currentLEDState = LED_STATE_GREEN_FAVORABLE;
+        digitalWrite(PIN_LED_GREEN, HIGH);
+        digitalWrite(PIN_LED_RED, LOW);
+    } 
+    // 4. Drying / Attention required: Moisture < 40% OR heat stress -> RED
+    else {
+        currentLEDState = LED_STATE_RED_ATTENTION;
+        digitalWrite(PIN_LED_GREEN, LOW);
+        digitalWrite(PIN_LED_RED, HIGH);
+    }
+}
+
+/**
+ * Non-blocking blink driver for hardware fault alert state.
+ * Toggles Red LED every 500ms when fault is active.
+ */
+void serviceLEDBlink() {
+    if (currentLEDState == LED_STATE_RED_FAULT_BLINK) {
+        unsigned long currentMillis = millis();
+        if (currentMillis - lastLEDBlinkToggle >= 500) {
+            lastLEDBlinkToggle = currentMillis;
+            ledBlinkToggleState = !ledBlinkToggleState;
+            digitalWrite(PIN_LED_RED, ledBlinkToggleState ? HIGH : LOW);
+        }
+    }
+}
+
+// =====================================================================
+// 12. SERIAL MONITOR TELEMETRY DISPLAY
+// =====================================================================
+
 /**
  * Pretty-prints telemetry banner on Serial Monitor matching project presentation format.
  */
 void printTelemetryBanner(const SensorTelemetry &t) {
     Serial.println("----------------------------------------");
-    Serial.printf("Moisture Raw : %.0f ADC\n", t.moistureRaw);
+    Serial.printf("Moisture Raw : %.0f ADC (Local Est: %.1f%%)\n", 
+                  t.moistureRaw, calculateLocalMoisturePercent(t.moistureRaw));
 
     if (t.temperatureValid) {
         Serial.printf("Temperature  : %.2f °C\n", t.temperatureC);
     } else {
-        Serial.println("Temperature  : SENSOR DISCONNECTED");
+        Serial.println("Temperature  : SENSOR DISCONNECTED [FAULT]");
     }
 
     if (t.distanceValid) {
         Serial.printf("Distance     : %.2f cm\n", t.distanceCm);
         Serial.printf("Plant Height : %.2f cm\n", t.plantHeightCm);
     } else {
-        Serial.println("Distance     : SENSOR TIMEOUT");
+        Serial.println("Distance     : SENSOR TIMEOUT [FAULT]");
         Serial.println("Plant Height : -- cm");
+    }
+
+    // Optional Visual LED Status
+    Serial.print("LED Status   : ");
+    switch (currentLEDState) {
+        case LED_STATE_GREEN_FAVORABLE:
+            Serial.println("GREEN [Favorable: Moist & Moderate Temp]");
+            break;
+        case LED_STATE_RED_ATTENTION:
+            Serial.println("RED [Attention: Low Moisture / High Temp]");
+            break;
+        case LED_STATE_RED_FAULT_BLINK:
+            Serial.println("RED BLINKING [Hardware Sensor Fault]");
+            break;
+        case LED_STATE_STARTUP_OFF:
+        default:
+            Serial.println("OFF [Initializing]");
+            break;
     }
 }
