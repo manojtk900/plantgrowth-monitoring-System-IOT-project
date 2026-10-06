@@ -93,34 +93,19 @@ ESP32
 
 ```cpp
 /**
- * =====================================================================
  * IoT-Based Plant Growth & Environmental Monitoring System
  * Edge Node Firmware — ESP32 DevKit V1 (Device ID: ESP32_003)
- * =====================================================================
  * 
  * Features:
- *   1. Multi-Wi-Fi Fallback: WiFiMulti supports 3 saved networks (Home, College, Hotspot).
- *   2. Dual-Destination Telemetry: Cloud-First (Render HTTPS) with automatic Local Fallback (Flask LAN HTTP).
- *   3. Strict TLS Security: WiFiClientSecure with Let's Encrypt ISRG Root X1 CA validation.
- *      (Zero client.setInsecure() bypass).
- *   4. SNTP Synchronization: Real-time clock synchronization for TLS validity checks.
- *   5. Sensor Engine:
- *      - Capacitive Soil Moisture Sensor (v1.2) on GPIO 34 (Multi-sample ADC averaging)
- *      - DS18B20 Waterproof Temperature Sensor on GPIO 4 (OneWire with DallasTemperature)
- *      - HC-SR04 Ultrasonic Sensor on TRIG GPIO 5 / ECHO GPIO 18 (Filtered distance & canopy height)
- *   6. Dynamic Telemetry Contract: Preserves backend relative moisture index calculation.
- * 
- * Libraries Required (Install via Arduino IDE Library Manager):
- *   - ArduinoJson (by Benoit Blanchon, v6.x or v7.x)
- *   - OneWire (by Paul Stoffregen)
- *   - DallasTemperature (by Miles Burton)
- * 
- * Board Settings:
- *   - Board: ESP32 Dev Module
- *   - CPU Frequency: 240MHz (WiFi/BT)
- *   - Flash Frequency: 80MHz
- *   - Upload Speed: 921600 or 115200
- * =====================================================================
+ *   - Multi-Wi-Fi fallback (WiFiMulti with 3 credential slots)
+ *   - Dual-destination telemetry (Render Cloud HTTPS first, local Flask LAN fallback)
+ *   - Strict TLS validation (Google Trust Services GTS Root R4 + ISRG Root X1 CA)
+ *   - SNTP time synchronization for certificate validity
+ *   - Capacitive Soil Moisture (GPIO 34)
+ *   - DS18B20 Temperature (GPIO 4)
+ *   - HC-SR04 Ultrasonic Distance & Canopy Height (TRIG GPIO 5, ECHO GPIO 18)
+ *   - Optional visual status indicators (Green LED GPIO 25, Red LED GPIO 26)
+ *   - Authoritative backend calibration contract (moisture_percent: null)
  */
 
 #include <WiFi.h>
@@ -132,65 +117,57 @@ ESP32
 #include <ArduinoJson.h>
 #include "time.h"
 
-// =====================================================================
-// 1. HARDWARE CONFIGURATION & PIN ASSIGNMENTS
-// =====================================================================
-// Core Physical Sensors (Existing wiring strictly unchanged)
+// 1. Hardware Configuration & Pins
 #define PIN_SOIL_MOISTURE  34   // ADC1_CH6 (Capacitive sensor analog output)
-#define PIN_ONE_WIRE_BUS    4   // DS18B20 Data line (with 4.7kΩ pull-up to 3.3V)
-#define PIN_TRIG            5   // HC-SR04 Ultrasonic Trigger
-#define PIN_ECHO           18   // HC-SR04 Ultrasonic Echo (via 1kΩ/2kΩ voltage divider)
+#define PIN_ONE_WIRE_BUS    4   // DS18B20 Data (4.7kΩ pull-up to 3.3V)
+#define PIN_TRIG            5   // HC-SR04 Trigger
+#define PIN_ECHO           18   // HC-SR04 Echo (1kΩ/2kΩ voltage divider)
 
-// Optional Visual Indicators (Plug-and-play indicator layer)
-#define PIN_LED_GREEN      25   // Optional Green LED (via 220Ω resistor to GND)
-#define PIN_LED_RED        26   // Optional Red LED (via 220Ω resistor to GND)
+// Optional Visual Indicators (Plug-and-play, zero-dependency)
+#define PIN_LED_GREEN      25   // Optional Green LED (220Ω series resistor to GND)
+#define PIN_LED_RED        26   // Optional Red LED (220Ω series resistor to GND)
 
-// Moisture Calibration Reference Points (Relative Soil Moisture Index)
-const float DRY_RAW_REF = 3326.0; // Air / Dry Reference (0% RSMI)
-const float WET_RAW_REF = 1520.0; // Water / Wet Reference (100% RSMI)
+// Relative Soil Moisture Index (RSMI) Local Calibration Reference
+const float DRY_RAW_REF = 3326.0; // Air / Dry reference (0% RSMI)
+const float WET_RAW_REF = 1520.0; // Water / Wet reference (100% RSMI)
 
 const char* DEVICE_ID = "ESP32_003";
-const float SENSOR_MOUNT_HEIGHT_CM = 30.0; // Fixed gantry reference height
+const float SENSOR_MOUNT_HEIGHT_CM = 30.0;
+const unsigned long TRANSMISSION_INTERVAL_MS = 10000;
 
-// Telemetry Transmission Interval (milliseconds)
-const unsigned long TRANSMISSION_INTERVAL_MS = 10000; // 10 seconds between uploads
-
-// =====================================================================
-// 2. NETWORK CONFIGURATION & MULTI-WIFI CREDENTIALS
-// =====================================================================
-WiFiMulti wifiMulti;
-
-// Configure your 3 accessible Wi-Fi networks here:
+// 2. Wi-Fi & Destination Endpoints
 struct WiFiCredential {
     const char* ssid;
     const char* password;
 };
 
+// Slot 1 is default; slots 2 and 3 are optional fallbacks
 const WiFiCredential WIFI_NETWORKS[3] = {
-    {"Home_WiFi",       "home_password_here"},       // Network 1: Home Wi-Fi
-    {"College_WiFi",    "college_password_here"},    // Network 2: College / Lab Wi-Fi
-    {"Mobile_Hotspot",  "hotspot_password_here"}     // Network 3: Mobile Phone Hotspot
+    {"manojtk", "manojtk900"}, // 1. DEFAULT — preferred
+    {"", ""},                  // 2. Optional fallback
+    {"", ""}                   // 3. Optional fallback
 };
 
-// =====================================================================
-// 3. SERVER DESTINATIONS (CLOUD-FIRST WITH LOCAL FALLBACK)
-// =====================================================================
-// Cloud Production Endpoint (Render Managed Web Service over HTTPS)
 const char* CLOUD_SERVER_URL = "https://plantgrowth-monitoring-system-iot-project.onrender.com/api/sensor-data";
-
-// Local Development Fallback Endpoint (Your Laptop's LAN IP address)
-// (Find via 'ipconfig' on Windows; example: 10.61.173.131 or 192.168.1.100)
 const char* LOCAL_SERVER_URL = "http://10.61.173.131:5000/api/sensor-data";
-
-// HTTP Request Timeout (milliseconds)
-// (Render free instances take ~20-30s during cold starts; 15s allows robust connection)
 const int HTTP_TIMEOUT_MS = 15000;
 
-// =====================================================================
-// 4. TLS ROOT CA CERTIFICATE (ISRG ROOT X1 - LET'S ENCRYPT)
-// =====================================================================
-// Used to validate Render's SSL/TLS certificate securely without client.setInsecure()
-const char* ISRG_ROOT_X1_CA = \
+// 3. TLS Root Certificates
+// Bundle containing GTS Root R4 (Render *.onrender.com root) and ISRG Root X1 (Let's Encrypt)
+const char* ROOT_CA_BUNDLE = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD\n" \
+"VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG\n" \
+"A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw\n" \
+"WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz\n" \
+"IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi\n" \
+"AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi\n" \
+"QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR\n" \
+"HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW\n" \
+"BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D\n" \
+"9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8\n" \
+"p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD\n" \
+"-----END CERTIFICATE-----\n" \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw\n" \
 "TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n" \
@@ -199,50 +176,51 @@ const char* ISRG_ROOT_X1_CA = \
 "ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY\n" \
 "MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc\n" \
 "h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+\n" \
-"0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK/62gvQUbKE\n" \
-"ti0hxjp8HUjTvcYyehkTxmdUZccF38Nyc小平8Sj+ppGfKQ55Zx6Lnet9RQDAoBX\n" \
-"KqKPR56oqPeeJYptoknwisu4peNxsIEJ48GZGQGREPRuPyayMb7v6fidwbHPmWzq\n" \
-"urLKX2m6q030SUrhvUMyzUuwb1vvc34jtxR72s00kt5ODfBShKgTvKFdUkYK硝S\n" \
-"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\n" \
+"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\n" \
 "-----END CERTIFICATE-----\n";
 
-// =====================================================================
-// 5. HARDWARE DRIVERS & STATE VARIABLES
-// =====================================================================
+// 4. Drivers & State Variables
+WiFiMulti wifiMulti;
 OneWire oneWire(PIN_ONE_WIRE_BUS);
 DallasTemperature tempSensors(&oneWire);
 
 unsigned long lastTransmissionTime = 0;
 bool sntpSynchronized = false;
+int consecutiveFaultCycles = 0;
+const int FAULT_THRESHOLD = 2; // Require 2 consecutive failed reading cycles before red fault blink
 
-// Optional Visual LED State Machine
 enum LEDIndicatorState {
     LED_STATE_STARTUP_OFF,     // Startup default: Both LEDs OFF until first valid reading
     LED_STATE_GREEN_FAVORABLE, // Green Steady: Moisture >= 40% AND Temp < 30°C AND sensors valid
     LED_STATE_RED_ATTENTION,   // Red Steady: Moisture < 40% OR (Moisture < 50% AND Temp >= 30°C)
-    LED_STATE_RED_FAULT_BLINK  // Red Blink: Hardware sensor fault (DS18B20 or HC-SR04 invalid)
+    LED_STATE_RED_FAULT_BLINK  // Red Blink: Persistent hardware sensor fault
 };
 
 LEDIndicatorState currentLEDState = LED_STATE_STARTUP_OFF;
 unsigned long lastLEDBlinkToggle = 0;
 bool ledBlinkToggleState = false;
 
-// Telemetry Data Struct
 struct SensorTelemetry {
     float moistureRaw;
     float temperatureC;
@@ -254,30 +232,34 @@ struct SensorTelemetry {
 };
 
 // Forward Declarations
+void connectToBestWiFi();
+void syncNTPTime();
+SensorTelemetry collectSensorData();
 float calculateLocalMoisturePercent(float raw);
-void  updateLEDIndicators(const SensorTelemetry &t);
-void  serviceLEDBlink();
+void updateLEDIndicators(const SensorTelemetry &t);
+void serviceLEDBlink();
+void printTelemetryBanner(const SensorTelemetry &t);
+void transmitTelemetry(const SensorTelemetry &t);
+bool postToCloudHTTPS(const String &payload);
+bool postToLocalHTTP(const String &payload);
 
-// =====================================================================
-// 6. SETUP ROUTINE
-// =====================================================================
+// 5. Setup Routine
 void setup() {
     Serial.begin(115200);
-    delay(1500);
+    delay(1000);
 
     Serial.println("\n========================================");
     Serial.println(" IoT Plant Growth Monitoring System");
     Serial.printf (" Device ID: %s\n", DEVICE_ID);
     Serial.println("========================================");
 
-    // Initialize Sensor GPIOs (Existing wiring unchanged)
+    // Initialize Sensor GPIOs (Strictly unchanged wiring)
     pinMode(PIN_SOIL_MOISTURE, INPUT);
     pinMode(PIN_TRIG, OUTPUT);
     digitalWrite(PIN_TRIG, LOW);
     pinMode(PIN_ECHO, INPUT);
 
     // Initialize Optional Visual Indicator LEDs (Zero-dependency outputs)
-    // Both start explicitly OFF until the first valid sensor acquisition cycle
     pinMode(PIN_LED_GREEN, OUTPUT);
     pinMode(PIN_LED_RED, OUTPUT);
     digitalWrite(PIN_LED_GREEN, LOW);
@@ -285,70 +267,53 @@ void setup() {
 
     // Initialize DS18B20 Temperature Sensor
     tempSensors.begin();
-    tempSensors.setResolution(11); // 11-bit resolution = 0.125°C precision
+    tempSensors.setResolution(11);
 
-    // Register Wi-Fi Networks with WiFiMulti
-    Serial.println("\nConfiguring Wi-Fi Networks:");
+    // Register configured Wi-Fi networks (skipping empty slots cleanly)
+    Serial.println("Configuring Wi-Fi Credentials:");
     for (int i = 0; i < 3; i++) {
-        wifiMulti.addAP(WIFI_NETWORKS[i].ssid, WIFI_NETWORKS[i].password);
-        Serial.printf(" [%d] %s\n", i + 1, WIFI_NETWORKS[i].ssid);
+        if (strlen(WIFI_NETWORKS[i].ssid) > 0) {
+            wifiMulti.addAP(WIFI_NETWORKS[i].ssid, WIFI_NETWORKS[i].password);
+            Serial.printf(" [%d] %s (registered)\n", i + 1, WIFI_NETWORKS[i].ssid);
+        } else {
+            Serial.printf(" [%d] (empty slot - skipped)\n", i + 1);
+        }
     }
 
-    // Connect to Available Wi-Fi Network
     connectToBestWiFi();
-
-    // Synchronize Real-Time Clock via SNTP for TLS Certificate Verification
     syncNTPTime();
 }
 
-// =====================================================================
-// 7. MAIN LOOP
-// =====================================================================
+// 6. Main Loop
 void loop() {
     unsigned long currentMillis = millis();
 
-    // Maintain non-blocking LED blink service (if in sensor fault alert state)
+    // Maintain non-blocking LED blink service
     serviceLEDBlink();
 
-    // Check transmission schedule
+    // Telemetry transmission cycle
     if (currentMillis - lastTransmissionTime >= TRANSMISSION_INTERVAL_MS || lastTransmissionTime == 0) {
         lastTransmissionTime = currentMillis;
 
-        // Ensure Wi-Fi is connected
         if (wifiMulti.run() != WL_CONNECTED) {
             Serial.println("[!] Wi-Fi disconnected. Reconnecting via WiFiMulti...");
             connectToBestWiFi();
         }
 
-        // Recheck SNTP if not yet synced
         if (!sntpSynchronized && WiFi.status() == WL_CONNECTED) {
             syncNTPTime();
         }
 
-        // Read all physical sensors
         SensorTelemetry telemetry = collectSensorData();
-
-        // Update optional visual LED indicators based on sensor telemetry
         updateLEDIndicators(telemetry);
-
-        // Display readings on Serial Monitor
         printTelemetryBanner(telemetry);
-
-        // Transmit data: Cloud First -> Local Fallback -> Retry
         transmitTelemetry(telemetry);
     }
 
-    delay(20); // Responsive 20ms tick for smooth non-blocking LED blinking
+    delay(20); // Responsive tick for smooth non-blocking blinking
 }
 
-// =====================================================================
-// 8. SENSOR ACQUISITION FUNCTIONS
-// =====================================================================
-
-/**
- * Reads the Capacitive Soil Moisture Sensor on GPIO 34.
- * Takes 10 ADC samples with 10ms delays to eliminate ADC noise.
- */
+// 7. Sensor Acquisition
 float readSoilMoistureRaw() {
     long sum = 0;
     const int SAMPLES = 10;
@@ -356,19 +321,13 @@ float readSoilMoistureRaw() {
         sum += analogRead(PIN_SOIL_MOISTURE);
         delay(10);
     }
-    float avgRaw = (float)sum / SAMPLES;
-    return avgRaw;
+    return (float)sum / SAMPLES;
 }
 
-/**
- * Reads DS18B20 waterproof temperature sensor on GPIO 4.
- * Rejects disconnected (-127°C) and power-on reset (85°C) fault values.
- */
 float readTemperature(bool &isValid) {
     tempSensors.requestTemperatures();
     float tempC = tempSensors.getTempCByIndex(0);
 
-    // Validation: Disconnected is -127°C, initial power-on fault is 85°C
     if (tempC <= -120.0 || tempC >= 85.0 || tempC == DEVICE_DISCONNECTED_C) {
         isValid = false;
         return -999.0;
@@ -377,10 +336,6 @@ float readTemperature(bool &isValid) {
     return tempC;
 }
 
-/**
- * Reads HC-SR04 ultrasonic distance sensor on TRIG GPIO 5 / ECHO GPIO 18.
- * Takes 3 pulses and uses median to eliminate ultrasonic noise/spikes.
- */
 float readUltrasonicDistance(bool &isValid) {
     float readings[3];
     int validCount = 0;
@@ -392,10 +347,8 @@ float readUltrasonicDistance(bool &isValid) {
         delayMicroseconds(10);
         digitalWrite(PIN_TRIG, LOW);
 
-        // Timeout of 30ms (~5 meters max range)
         long duration = pulseIn(PIN_ECHO, HIGH, 30000);
         if (duration > 0) {
-            // Speed of sound: 343 m/s = 0.0343 cm/us -> distance = (duration * 0.0343) / 2
             float dist = (duration * 0.0343) / 2.0;
             if (dist >= 2.0 && dist <= 300.0) {
                 readings[validCount++] = dist;
@@ -409,45 +362,42 @@ float readUltrasonicDistance(bool &isValid) {
         return -999.0;
     }
 
-    // Average the valid pulses
+    // Average up to 3 valid readings
     float sum = 0;
     for (int i = 0; i < validCount; i++) sum += readings[i];
-    float avgDist = sum / validCount;
-
     isValid = true;
-    return avgDist;
+    return sum / validCount;
 }
 
-/**
- * Aggregates all sensor readings into a unified telemetry structure.
- */
 SensorTelemetry collectSensorData() {
     SensorTelemetry data;
     data.moistureRaw = readSoilMoistureRaw();
-
     data.temperatureC = readTemperature(data.temperatureValid);
-
     data.distanceCm = readUltrasonicDistance(data.distanceValid);
+
     if (data.distanceValid) {
-        // Plant Canopy Height = Mount Reference (30.0 cm) - Measured Flight Distance
         float height = SENSOR_MOUNT_HEIGHT_CM - data.distanceCm;
         data.plantHeightCm = (height > 0.0) ? height : 0.0;
     } else {
         data.plantHeightCm = 0.0;
     }
 
-    data.status = (data.temperatureValid && data.distanceValid) ? "OK" : "DEGRADED";
+    bool cycleFault = (!data.temperatureValid || !data.distanceValid);
+    if (cycleFault) {
+        consecutiveFaultCycles++;
+    } else {
+        consecutiveFaultCycles = 0;
+    }
+
+    data.status = (consecutiveFaultCycles == 0) ? "OK" : "DEGRADED";
     return data;
 }
 
-// =====================================================================
-// 9. TIME SYNCHRONIZATION (SNTP FOR TLS CERTIFICATE VALIDITY)
-// =====================================================================
+// 8. Time Synchronization (SNTP)
 void syncNTPTime() {
     if (WiFi.status() != WL_CONNECTED) return;
 
     Serial.print("[*] Synchronizing system time via SNTP... ");
-    // Configure NTP servers: UTC offset = 0, Daylight offset = 0
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 
     time_t now = time(nullptr);
@@ -466,18 +416,12 @@ void syncNTPTime() {
             timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
         sntpSynchronized = true;
     } else {
-        Serial.println("SNTP Sync Timeout (will retry next cycle).");
+        Serial.println("Timeout (will retry next cycle).");
         sntpSynchronized = false;
     }
 }
 
-// =====================================================================
-// 10. NETWORK MANAGEMENT & TELEMETRY TRANSMISSION
-// =====================================================================
-
-/**
- * Scans and connects to the best available registered Wi-Fi network.
- */
+// 9. Network & Telemetry Transmission
 void connectToBestWiFi() {
     Serial.print("[*] Connecting to available Wi-Fi network");
     int attempts = 0;
@@ -489,22 +433,18 @@ void connectToBestWiFi() {
     Serial.println();
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("Connected: %s\n", WiFi.SSID().c_str());
-        Serial.printf("IP: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("RSSI: %d dBm\n", WiFi.RSSI());
+        Serial.printf("Connected: %s (IP: %s, RSSI: %d dBm)\n",
+                      WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI());
     } else {
         Serial.println("[!] No configured Wi-Fi network found within range.");
     }
 }
 
-/**
- * Formats the standardized JSON payload for both Cloud and Local endpoints.
- */
 String buildJsonPayload(const SensorTelemetry &t) {
     StaticJsonDocument<384> doc;
     doc["device_id"] = DEVICE_ID;
     doc["moisture_raw"] = round(t.moistureRaw * 10.0) / 10.0;
-    doc["moisture_percent"] = nullptr; // Backend calculates accurate RSMI
+    doc["moisture_percent"] = nullptr; // Backend calculates authoritative RSMI
 
     if (t.temperatureValid) {
         doc["temperature_c"] = round(t.temperatureC * 100.0) / 100.0;
@@ -527,12 +467,6 @@ String buildJsonPayload(const SensorTelemetry &t) {
     return jsonString;
 }
 
-/**
- * Intelligent Dual-Destination Router:
- * 1. Tries Render Cloud over HTTPS with ISRG Root X1 TLS validation.
- * 2. If Cloud is unreachable, immediately attempts Local Flask LAN endpoint.
- * 3. If both fail, caches telemetry and logs diagnostic warning.
- */
 void transmitTelemetry(const SensorTelemetry &t) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[!] Cannot transmit: No Wi-Fi connection active.");
@@ -541,11 +475,9 @@ void transmitTelemetry(const SensorTelemetry &t) {
 
     String payload = buildJsonPayload(t);
 
-    // MODE 1: Try Render Cloud HTTPS (Primary Destination)
+    // Primary: Render Cloud HTTPS
     Serial.println("Cloud server: ATTEMPTING...");
-    bool cloudSuccess = postToCloudHTTPS(payload);
-
-    if (cloudSuccess) {
+    if (postToCloudHTTPS(payload)) {
         Serial.println("Cloud server: AVAILABLE");
         Serial.println("Data destination: RENDER CLOUD (Supabase PostgreSQL)");
         Serial.println("Cloud POST: 201 Created -> Data uploaded successfully");
@@ -553,13 +485,10 @@ void transmitTelemetry(const SensorTelemetry &t) {
         return;
     }
 
-    // MODE 2: Cloud Failed / Render Cold Start -> Try Local Flask Fallback
+    // Fallback: Local Flask LAN HTTP
     Serial.println("Cloud server: UNAVAILABLE / TIMEOUT");
     Serial.println("Trying local Flask server fallback...");
-
-    bool localSuccess = postToLocalHTTP(payload);
-
-    if (localSuccess) {
+    if (postToLocalHTTP(payload)) {
         Serial.println("Local server: AVAILABLE");
         Serial.println("Data destination: LOCAL FLASK (SQLite)");
         Serial.println("Local POST: 201 Created -> Data saved locally");
@@ -567,18 +496,14 @@ void transmitTelemetry(const SensorTelemetry &t) {
         return;
     }
 
-    // MODE 3: Both Destinations Unavailable
     Serial.println("Local server: UNAVAILABLE");
     Serial.println("[!] Both Cloud and Local servers unreachable. Retrying next cycle.");
     Serial.println("----------------------------------------\n");
 }
 
-/**
- * Transmits telemetry payload to Render Cloud over HTTPS with CA certificate validation.
- */
 bool postToCloudHTTPS(const String &payload) {
     WiFiClientSecure secureClient;
-    secureClient.setCACert(ISRG_ROOT_X1_CA); // Strict validation using Let's Encrypt Root CA
+    secureClient.setCACert(ROOT_CA_BUNDLE);
     secureClient.setTimeout(HTTP_TIMEOUT_MS / 1000);
 
     HTTPClient https;
@@ -593,21 +518,13 @@ bool postToCloudHTTPS(const String &payload) {
 
     int httpCode = https.POST(payload);
     bool success = (httpCode == 200 || httpCode == 201);
-
-    if (!success) {
-        Serial.printf("Cloud HTTPS POST failed. Error / HTTP Code: %d\n", httpCode);
-    }
-
     https.end();
     return success;
 }
 
-/**
- * Transmits telemetry payload to Local Flask server over standard LAN HTTP.
- */
 bool postToLocalHTTP(const String &payload) {
     WiFiClient standardClient;
-    standardClient.setTimeout(5); // 5-second local LAN timeout
+    standardClient.setTimeout(5);
 
     HTTPClient http;
     http.setTimeout(5000);
@@ -621,23 +538,11 @@ bool postToLocalHTTP(const String &payload) {
 
     int httpCode = http.POST(payload);
     bool success = (httpCode == 200 || httpCode == 201);
-
-    if (!success) {
-        Serial.printf("Local HTTP POST failed. Error / HTTP Code: %d\n", httpCode);
-    }
-
     http.end();
     return success;
 }
 
-// =====================================================================
-// 11. OPTIONAL STATUS LED INDICATOR SUBSYSTEM
-// =====================================================================
-
-/**
- * Calculates local Relative Soil Moisture Index estimate (%) for indicator logic.
- * Note: Authoritative calibrated value is still computed by backend / Cloud API.
- */
+// 10. Status LED Subsystem (Optional, Non-Blocking)
 float calculateLocalMoisturePercent(float raw) {
     if (raw >= DRY_RAW_REF) return 0.0;
     if (raw <= WET_RAW_REF) return 100.0;
@@ -647,33 +552,22 @@ float calculateLocalMoisturePercent(float raw) {
     return pct;
 }
 
-/**
- * Updates optional LED visual status indicator.
- * Purely non-blocking; zero dependency on physical presence of LEDs.
- * 
- * Logic rules:
- * - RED BLINK: Genuine sensor fault (DS18B20 invalid OR HC-SR04 invalid)
- * - GREEN STEADY: Moisture >= 40% AND Temp < 30°C AND all sensors valid
- * - RED STEADY: Moisture < 40% OR (Moisture < 50% AND Temp >= 30°C)
- */
 void updateLEDIndicators(const SensorTelemetry &t) {
-    // 1. Check for genuine hardware sensor fault -> RED BLINK
-    if (!t.temperatureValid || !t.distanceValid) {
+    // 1. Persistent hardware sensor fault -> RED BLINK
+    if (consecutiveFaultCycles >= FAULT_THRESHOLD) {
         currentLEDState = LED_STATE_RED_FAULT_BLINK;
         digitalWrite(PIN_LED_GREEN, LOW);
         return;
     }
 
-    // 2. Compute local moisture index for plant environment evaluation
+    // 2. Favorable environment: Moisture >= 40% AND Temp < 30°C -> GREEN
     float moisturePct = calculateLocalMoisturePercent(t.moistureRaw);
-
-    // 3. Favorable environment: Moisture >= 40% AND Temp < 30°C -> GREEN
-    if (moisturePct >= 40.0 && t.temperatureC < 30.0) {
+    if (moisturePct >= 40.0 && t.temperatureC < 30.0 && t.temperatureValid && t.distanceValid) {
         currentLEDState = LED_STATE_GREEN_FAVORABLE;
         digitalWrite(PIN_LED_GREEN, HIGH);
         digitalWrite(PIN_LED_RED, LOW);
     } 
-    // 4. Drying / Attention required: Moisture < 40% OR heat stress -> RED
+    // 3. Attention / Drying required -> RED
     else {
         currentLEDState = LED_STATE_RED_ATTENTION;
         digitalWrite(PIN_LED_GREEN, LOW);
@@ -681,10 +575,6 @@ void updateLEDIndicators(const SensorTelemetry &t) {
     }
 }
 
-/**
- * Non-blocking blink driver for hardware fault alert state.
- * Toggles Red LED every 500ms when fault is active.
- */
 void serviceLEDBlink() {
     if (currentLEDState == LED_STATE_RED_FAULT_BLINK) {
         unsigned long currentMillis = millis();
@@ -696,13 +586,7 @@ void serviceLEDBlink() {
     }
 }
 
-// =====================================================================
-// 12. SERIAL MONITOR TELEMETRY DISPLAY
-// =====================================================================
-
-/**
- * Pretty-prints telemetry banner on Serial Monitor matching project presentation format.
- */
+// 11. Serial Monitor Telemetry Display
 void printTelemetryBanner(const SensorTelemetry &t) {
     Serial.println("----------------------------------------");
     Serial.printf("Moisture Raw : %.0f ADC (Local Est: %.1f%%)\n", 
@@ -722,17 +606,16 @@ void printTelemetryBanner(const SensorTelemetry &t) {
         Serial.println("Plant Height : -- cm");
     }
 
-    // Optional Visual LED Status
     Serial.print("LED Status   : ");
     switch (currentLEDState) {
         case LED_STATE_GREEN_FAVORABLE:
             Serial.println("GREEN [Favorable: Moist & Moderate Temp]");
             break;
         case LED_STATE_RED_ATTENTION:
-            Serial.println("RED [Attention: Low Moisture / High Temp]");
+            Serial.println("RED [Attention: Low Moisture / Elevated Temp]");
             break;
         case LED_STATE_RED_FAULT_BLINK:
-            Serial.println("RED BLINKING [Hardware Sensor Fault]");
+            Serial.printf("RED BLINKING [Sensor Warning: %d cycles missed]\n", consecutiveFaultCycles);
             break;
         case LED_STATE_STARTUP_OFF:
         default:
