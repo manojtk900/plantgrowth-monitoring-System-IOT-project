@@ -1102,8 +1102,79 @@ function initNavigation() {
         device: {
             title: "Device Diagnostics & Calibration Settings",
             sub: "Configure Relative Soil Moisture Index (RSMI) calibration and review hardware topology"
+        },
+        portfolio: {
+            title: "About / Portfolio • Manoj T K",
+            sub: "Computer Science & Engineering • AI • ML • IoT • Full Stack • Cybersecurity"
         }
     };
+
+    // =====================================================================
+    // PORTFOLIO & TEAM MEMBERS CONFIGURATION (EXTENSIBLE)
+    // =====================================================================
+    const teamMembers = [
+        {
+            name: "Manoj T K",
+            role: "Developer / Project Contributor",
+            photo: "/static/images/profile.jpg",
+            github: "https://github.com/manojtk900",
+            linkedin: "https://www.linkedin.com/in/manoj-t-k-00ab73378/",
+            // Optional placeholders: if provided, buttons are rendered; if empty, omitted safely
+            email: "",
+            resume: "",
+            portfolio: ""
+        }
+    ];
+
+    function renderTeamMembers() {
+        const container = document.getElementById("portfolioTeamList");
+        if (!container) return;
+
+        container.innerHTML = teamMembers.map(member => {
+            let linksHtml = "";
+            if (member.github) {
+                linksHtml += `<a href="${escapeHtml(member.github)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="GitHub">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    GitHub
+                </a>`;
+            }
+            if (member.linkedin) {
+                linksHtml += `<a href="${escapeHtml(member.linkedin)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="LinkedIn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                    LinkedIn
+                </a>`;
+            }
+            if (member.email && member.email.trim()) {
+                linksHtml += `<a href="mailto:${escapeHtml(member.email)}" class="team-social-btn" title="Email">
+                    ✉️ Email
+                </a>`;
+            }
+            if (member.resume && member.resume.trim()) {
+                linksHtml += `<a href="${escapeHtml(member.resume)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="Resume">
+                    📄 Resume
+                </a>`;
+            }
+            if (member.portfolio && member.portfolio.trim()) {
+                linksHtml += `<a href="${escapeHtml(member.portfolio)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="Portfolio">
+                    🌐 Site
+                </a>`;
+            }
+
+            return `
+                <div class="team-card">
+                    <img src="${escapeHtml(member.photo || '/static/images/profile.jpg')}" 
+                         alt="${escapeHtml(member.name)}" 
+                         class="team-card-photo"
+                         onerror="this.onerror=null; this.src='/static/images/avatar-placeholder.svg';">
+                    <div class="team-card-info">
+                        <h4 class="team-card-name">${escapeHtml(member.name)}</h4>
+                        <div class="team-card-role">${escapeHtml(member.role)}</div>
+                        <div class="team-card-links">${linksHtml}</div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
 
     function switchView(viewKey) {
         if (!viewKey) return;
@@ -1147,7 +1218,13 @@ function initNavigation() {
         // Scroll to top of content for clean view transition
         window.scrollTo({ top: 0, behavior: "smooth" });
 
+        // Synchronize browser URL hash cleanly without page reload
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, "", `#${viewKey}`);
+        }
+
         // Trigger specific view loaders
+        if (viewKey === "portfolio") renderTeamMembers();
         if (viewKey === "analytics") loadAnalyticsData();
         if (viewKey === "history") loadHistoryTable();
         if (viewKey === "device") loadCalibrationSettings();
@@ -1157,6 +1234,9 @@ function initNavigation() {
             updateDistanceAndHeightDisplay(dist, hgt);
         }
     }
+
+    // Expose switchView to global window object for inline click triggers
+    window.switchView = switchView;
 
     // Attach click listeners to sidebar nav items
     navItems.forEach(item => {
@@ -1295,6 +1375,19 @@ function initNavigation() {
     if (resetCalibrationBtn) {
         resetCalibrationBtn.addEventListener("click", resetCalibrationDefaults);
     }
+
+    // 8. Direct URL Hash Navigation (e.g., #portfolio, #growth, #analytics)
+    const initialHash = window.location.hash.replace("#", "").trim();
+    if (initialHash && viewTitles[initialHash]) {
+        switchView(initialHash);
+    }
+
+    window.addEventListener("hashchange", () => {
+        const currentHash = window.location.hash.replace("#", "").trim();
+        if (currentHash && viewTitles[currentHash]) {
+            switchView(currentHash);
+        }
+    });
 }
 
 

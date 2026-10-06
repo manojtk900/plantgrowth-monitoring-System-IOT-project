@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="PlantMonitor">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🌱</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -56,6 +56,10 @@
             </a>
             <a class="nav-item" href="#device" data-view="device">
                 <span class="nav-icon">🔌</span> Device & Settings
+            </a>
+            <div class="nav-divider"></div>
+            <a class="nav-item nav-item-portfolio" href="#portfolio" data-view="portfolio">
+                <span class="nav-icon">👨‍💻</span> About / Portfolio
             </a>
         </nav>
 
@@ -1093,14 +1097,604 @@
             </section>
         </div>
 
+        <!-- ================= VIEW 7: ABOUT / PORTFOLIO ================= -->
+        <div id="view-portfolio" class="view-section">
+
+            <!-- 1. HERO SECTION -->
+            <section class="portfolio-hero-card">
+                <div class="portfolio-hero-content">
+                    <div class="portfolio-avatar-wrap">
+                        <div class="avatar-ring-glow">
+                            <img id="portfolioProfileImg" 
+                                 src="{{ url_for('static', filename='images/profile.jpg') }}" 
+                                 alt="Manoj T K" 
+                                 class="portfolio-avatar-img"
+                                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/avatar-placeholder.svg') }}';">
+                            <span class="avatar-live-badge" title="Active Developer">●</span>
+                        </div>
+                    </div>
+
+                    <div class="portfolio-hero-text">
+                        <div class="hero-salutation-chip">👋 Hello, I'm</div>
+                        <h1 class="portfolio-name">MANOJ T K</h1>
+                        <h2 class="portfolio-tagline">Computer Science & Engineering Student</h2>
+                        <div class="portfolio-focus-pills">
+                            <span class="focus-pill">AI</span>
+                            <span class="focus-dot">•</span>
+                            <span class="focus-pill">Machine Learning</span>
+                            <span class="focus-dot">•</span>
+                            <span class="focus-pill">IoT</span>
+                            <span class="focus-dot">•</span>
+                            <span class="focus-pill">Full Stack Development</span>
+                            <span class="focus-dot">•</span>
+                            <span class="focus-pill">Cybersecurity</span>
+                        </div>
+                        <p class="portfolio-motto">Building practical technology for real-world problems.</p>
+
+                        <div class="portfolio-cta-row">
+                            <a href="https://github.com/manojtk900" target="_blank" rel="noopener noreferrer" class="btn-portfolio btn-primary">
+                                <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                                </svg>
+                                GitHub
+                            </a>
+                            <a href="https://www.linkedin.com/in/manoj-t-k-00ab73378/" target="_blank" rel="noopener noreferrer" class="btn-portfolio btn-linkedin">
+                                <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                                </svg>
+                                LinkedIn
+                            </a>
+                            <a href="#portfolio-projects" class="btn-portfolio btn-outline">
+                                🚀 View Projects
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. PORTFOLIO STATISTICS (AUTHENTIC METRICS ONLY) -->
+            <section class="portfolio-stats-grid">
+                <div class="portfolio-stat-box">
+                    <span class="p-stat-icon">🌱</span>
+                    <strong class="p-stat-number">1 Active System</strong>
+                    <span class="p-stat-label">IoT Telemetry & Edge Monitor</span>
+                </div>
+                <div class="portfolio-stat-box">
+                    <span class="p-stat-icon">🤖</span>
+                    <strong class="p-stat-number">3 Systems</strong>
+                    <span class="p-stat-label">AI & Machine Learning Platforms</span>
+                </div>
+                <div class="portfolio-stat-box">
+                    <span class="p-stat-icon">🛡️</span>
+                    <strong class="p-stat-number">1 System</strong>
+                    <span class="p-stat-label">Cybersecurity Defense Solution</span>
+                </div>
+                <div class="portfolio-stat-box">
+                    <span class="p-stat-icon">📄</span>
+                    <strong class="p-stat-number">1 Publication</strong>
+                    <span class="p-stat-label">IJVRA Journal Paper (Apr 2026)</span>
+                </div>
+            </section>
+
+            <!-- 3. ABOUT ME -->
+            <section class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>👤 About Me</h2>
+                        <p>Background, engineering interests, and development philosophy</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Developer Profile</span>
+                </div>
+                <div class="portfolio-about-body">
+                    <p class="about-lead-quote">
+                        "Computer Science & Engineering student interested in building practical solutions using Artificial Intelligence, Machine Learning, IoT and Full Stack technologies. I enjoy turning ideas into working systems — from sensor-based IoT prototypes and agricultural intelligence platforms to machine-learning applications and cybersecurity tools. My focus is on learning by building, deploying, testing and continuously improving real-world projects."
+                    </p>
+
+                    <div class="about-values-grid">
+                        <div class="value-card">
+                            <span class="value-icon">💡</span>
+                            <h4>Problem-First Engineering</h4>
+                            <p>Designing technology directly anchored to real farmer challenges, security threats, and actionable user outcomes rather than purely abstract theory.</p>
+                        </div>
+                        <div class="value-card">
+                            <span class="value-icon">🛠️</span>
+                            <h4>Full-Stack Edge to Cloud</h4>
+                            <p>Connecting physical sensor circuits (GPIO, ADC, 1-Wire, Sonar) with embedded microcontrollers (ESP32), REST API gateways (Flask), and modern responsive interfaces.</p>
+                        </div>
+                        <div class="value-card">
+                            <span class="value-icon">🔬</span>
+                            <h4>Explainable & Responsible AI</h4>
+                            <p>Prioritizing transparency, explainable AI, verifiable datasets, and reproducible experiments across agricultural analytics and cybersecurity models.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. TECHNICAL SKILLS -->
+            <section class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>⚡ Technical Skills & Core Competencies</h2>
+                        <p>Technologies, programming languages, libraries, and hardware platforms applied across projects</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Tech Stack</span>
+                </div>
+
+                <div class="skills-category-grid">
+                    <!-- Programming -->
+                    <div class="skill-category-card">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">💻</span>
+                            <h4>Programming Languages</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">Python</span>
+                            <span class="skill-chip">Java</span>
+                            <span class="skill-chip">C</span>
+                            <span class="skill-chip">JavaScript (ES6+)</span>
+                        </div>
+                    </div>
+
+                    <!-- AI / ML -->
+                    <div class="skill-category-card">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">🤖</span>
+                            <h4>AI & Machine Learning</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">Machine Learning</span>
+                            <span class="skill-chip">Artificial Intelligence</span>
+                            <span class="skill-chip">Scikit-learn</span>
+                            <span class="skill-chip">TensorFlow</span>
+                            <span class="skill-chip">Explainable AI (XAI)</span>
+                        </div>
+                    </div>
+
+                    <!-- Web / Backend -->
+                    <div class="skill-category-card">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">🌐</span>
+                            <h4>Web & Backend Development</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">Python Flask</span>
+                            <span class="skill-chip">REST APIs</span>
+                            <span class="skill-chip">HTML5</span>
+                            <span class="skill-chip">CSS3</span>
+                            <span class="skill-chip">JavaScript</span>
+                        </div>
+                    </div>
+
+                    <!-- IoT -->
+                    <div class="skill-category-card">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">📡</span>
+                            <h4>IoT & Hardware Engineering</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">ESP32 DevKit V1</span>
+                            <span class="skill-chip">Sensor Integration</span>
+                            <span class="skill-chip">Wi-Fi (WiFiMulti)</span>
+                            <span class="skill-chip">REST Telemetry</span>
+                            <span class="skill-chip">IoT Monitoring</span>
+                        </div>
+                    </div>
+
+                    <!-- Database -->
+                    <div class="skill-category-card">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">🗄️</span>
+                            <h4>Databases & Cloud Storage</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">SQLite</span>
+                            <span class="skill-chip">PostgreSQL</span>
+                            <span class="skill-chip">Firebase</span>
+                        </div>
+                    </div>
+
+                    <!-- Tools -->
+                    <div class="skill-category-card">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">🔧</span>
+                            <h4>Tools & DevOps</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">Git</span>
+                            <span class="skill-chip">GitHub</span>
+                            <span class="skill-chip">VS Code</span>
+                            <span class="skill-chip">Arduino IDE</span>
+                            <span class="skill-chip">Render Cloud</span>
+                        </div>
+                    </div>
+
+                    <!-- Cybersecurity -->
+                    <div class="skill-category-card full-span-cat">
+                        <div class="skill-cat-header">
+                            <span class="cat-icon">🛡️</span>
+                            <h4>Cybersecurity</h4>
+                        </div>
+                        <div class="skill-chips-list">
+                            <span class="skill-chip">Phishing Detection</span>
+                            <span class="skill-chip">TF-IDF Feature Extraction</span>
+                            <span class="skill-chip">Network Security</span>
+                            <span class="skill-chip">Cybersecurity Fundamentals</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. FEATURED PROJECTS -->
+            <section id="portfolio-projects" class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>🚀 Featured Engineering Projects</h2>
+                        <p>Curated software systems across IoT, Machine Learning, and Cybersecurity</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Selected Works</span>
+                </div>
+
+                <div class="projects-showcase-grid">
+                    <!-- Project 1: IoT Plant Growth -->
+                    <div class="project-card current-hero-project">
+                        <div class="project-card-header">
+                            <div class="project-type-icon">🌱</div>
+                            <div class="project-title-meta">
+                                <h3>IoT Plant Growth & Environmental Monitoring System</h3>
+                                <span class="project-tagline-sub">Precision Agriculture Telemetry Edge Platform</span>
+                            </div>
+                        </div>
+                        <div class="project-status-pill live">
+                            <span class="pulse-dot-sm"></span>
+                            <span>Live / Active Development</span>
+                        </div>
+                        <p class="project-desc">
+                            End-to-end precision agriculture IoT system combining edge sensor telemetry, non-contact ultrasonic plant canopy height measurement, capacitive soil moisture index tracking, and DS18B20 1-Wire temperature monitoring with an installable mobile PWA dashboard.
+                        </p>
+                        <div class="project-feature-list">
+                            <span class="feature-tag">ESP32 DevKit V1</span>
+                            <span class="feature-tag">Soil Moisture Index</span>
+                            <span class="feature-tag">DS18B20 Temp</span>
+                            <span class="feature-tag">HC-SR04 Sonar</span>
+                            <span class="feature-tag">Plant Height (30cm Mount)</span>
+                            <span class="feature-tag">Flask REST API</span>
+                            <span class="feature-tag">SQLite / PostgreSQL</span>
+                            <span class="feature-tag">Animated Plant SVG</span>
+                            <span class="feature-tag">Mobile PWA</span>
+                        </div>
+                        <div class="project-actions">
+                            <button type="button" class="btn-card-primary" onclick="if(typeof switchView === 'function') switchView('dashboard');">
+                                🌿 Open Live Dashboard
+                            </button>
+                            <a href="https://github.com/manojtk900/plantgrowth-monitoring-System-IOT-project.git" target="_blank" rel="noopener noreferrer" class="btn-card-github">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                                GitHub Repo
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Project 2: ASTRAL PROTECTION -->
+                    <div class="project-card">
+                        <div class="project-card-header">
+                            <div class="project-type-icon">🛡️</div>
+                            <div class="project-title-meta">
+                                <h3>ASTRAL PROTECTION</h3>
+                                <span class="project-tagline-sub">AI-Powered Phishing URL Detection & Security</span>
+                            </div>
+                        </div>
+                        <div class="project-status-pill ml-project">
+                            <span>● Machine Learning System</span>
+                        </div>
+                        <p class="project-desc">
+                            Intelligent cybersecurity platform designed to identify and neutralize malicious phishing URLs in real time. Employs multi-model machine learning classification paired with natural language threat advisory assistance.
+                        </p>
+                        <div class="project-feature-list">
+                            <span class="feature-tag">Machine Learning</span>
+                            <span class="feature-tag">TF-IDF Vectorization</span>
+                            <span class="feature-tag">Logistic Regression</span>
+                            <span class="feature-tag">Multinomial Naive Bayes</span>
+                            <span class="feature-tag">Random Forest</span>
+                            <span class="feature-tag">Python Flask</span>
+                            <span class="feature-tag">Cybersecurity Defense</span>
+                            <span class="feature-tag">Chatbot Interface</span>
+                        </div>
+                        <div class="project-actions">
+                            <a href="https://github.com/manojtk900/cyber-phishing-url-detector.git" target="_blank" rel="noopener noreferrer" class="btn-card-github">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                                GitHub Repo
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Project 3: MannuMitra / CropLife AI Karnataka -->
+                    <div class="project-card">
+                        <div class="project-card-header">
+                            <div class="project-type-icon">🌾</div>
+                            <div class="project-title-meta">
+                                <h3>MannuMitra / CropLife AI Karnataka</h3>
+                                <span class="project-tagline-sub">Explainable Crop Lifecycle Decision Support</span>
+                            </div>
+                        </div>
+                        <div class="project-status-pill agritech">
+                            <span>● Agritech AI Research</span>
+                        </div>
+                        <p class="project-desc">
+                            AI-driven agricultural decision intelligence platform tailored to Karnataka agro-climatic zones, computing localized crop recommendations, soil viability parameters, and Water Availability Index (WAI) with transparent Explainable AI rationale.
+                        </p>
+                        <div class="project-feature-list">
+                            <span class="feature-tag">Crop Recommendation</span>
+                            <span class="feature-tag">Karnataka Agro-Climatic Zones</span>
+                            <span class="feature-tag">Water Availability Index (WAI)</span>
+                            <span class="feature-tag">Explainable AI (XAI)</span>
+                            <span class="feature-tag">Weather Integration</span>
+                            <span class="feature-tag">Soil Intelligence</span>
+                            <span class="feature-tag">Crop Lifecycle Support</span>
+                        </div>
+                        <div class="project-integrity-note">
+                            <small>ℹ️ <em>Integrity Note: Reference & research agro-climatic datasets are clearly separated from verified government soil data sources.</em></small>
+                        </div>
+                    </div>
+
+                    <!-- Project 4: AgriGuard AI -->
+                    <div class="project-card">
+                        <div class="project-card-header">
+                            <div class="project-type-icon">🌿</div>
+                            <div class="project-title-meta">
+                                <h3>AgriGuard AI</h3>
+                                <span class="project-tagline-sub">Areca Plant Pathology Detection & Advisory</span>
+                            </div>
+                        </div>
+                        <div class="project-status-pill vision">
+                            <span>● Computer Vision Agritech</span>
+                        </div>
+                        <p class="project-desc">
+                            Computer vision and deep learning framework for early detection of foliar and stem diseases in areca nut crops. Delivers actionable treatment recommendations via a farmer-friendly interface with Grad-CAM explainability roadmap.
+                        </p>
+                        <div class="project-feature-list">
+                            <span class="feature-tag">AI / Machine Learning</span>
+                            <span class="feature-tag">Plant Disease Detection</span>
+                            <span class="feature-tag">Image Processing</span>
+                            <span class="feature-tag">Farmer Decision Support</span>
+                            <span class="feature-tag">Treatment Recommendations</span>
+                            <span class="feature-tag">Grad-CAM Roadmap</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. CURRENT PROJECT DEEP-DIVE: "WHY I BUILT THIS" -->
+            <section class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>🔍 Why I Built This: Plant Monitor Architecture</h2>
+                        <p>Bridging physical edge telemetry with verifiable agronomic insights</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Architecture Deep-Dive</span>
+                </div>
+
+                <div class="deep-dive-body">
+                    <p class="deep-dive-intro">
+                        Commercial agricultural monitors often hide calculation formulas, fabricate unmeasured parameters (such as synthetic air humidity without an installed sensor), or disconnect firmware from cloud verification. The <strong>Plant Monitor</strong> was engineered to establish an honest, verifiable, end-to-end data pipeline from physical transducer flight-times to calibrated database records.
+                    </p>
+
+                    <!-- Visual Architecture Pipeline -->
+                    <div class="architecture-flow-diagram">
+                        <div class="arch-node">
+                            <span class="arch-node-icon">⚡</span>
+                            <strong>ESP32 DevKit V1</strong>
+                            <small>GPIO 34, 4, 5, 18</small>
+                        </div>
+                        <span class="arch-arrow">→</span>
+                        <div class="arch-node">
+                            <span class="arch-node-icon">🔌</span>
+                            <strong>3 Physical Sensors</strong>
+                            <small>Moisture, Temp, Sonar</small>
+                        </div>
+                        <span class="arch-arrow">→</span>
+                        <div class="arch-node">
+                            <span class="arch-node-icon">📶</span>
+                            <strong>Wi-Fi Telemetry</strong>
+                            <small>TLS / WiFiMulti</small>
+                        </div>
+                        <span class="arch-arrow">→</span>
+                        <div class="arch-node">
+                            <span class="arch-node-icon">🐍</span>
+                            <strong>Flask REST API</strong>
+                            <small>Backend Validation</small>
+                        </div>
+                        <span class="arch-arrow">→</span>
+                        <div class="arch-node">
+                            <span class="arch-node-icon">🗄️</span>
+                            <strong>Database</strong>
+                            <small>SQLite / Supabase</small>
+                        </div>
+                        <span class="arch-arrow">→</span>
+                        <div class="arch-node">
+                            <span class="arch-node-icon">📊</span>
+                            <strong>Live Dashboard</strong>
+                            <small>Chart.js & Telemetry</small>
+                        </div>
+                        <span class="arch-arrow">→</span>
+                        <div class="arch-node">
+                            <span class="arch-node-icon">📱</span>
+                            <strong>Mobile PWA</strong>
+                            <small>Installable App</small>
+                        </div>
+                    </div>
+
+                    <!-- Sensor Breakdown -->
+                    <div class="sensor-deep-grid">
+                        <div class="sensor-deep-card">
+                            <div class="sensor-deep-head">
+                                <span class="sensor-icon">💧</span>
+                                <h4>Capacitive Soil Moisture</h4>
+                            </div>
+                            <p>Measures relative soil dielectric permittivity via high-frequency analog oscillation on GPIO 34 (ADC1). Calibrated strictly on the backend via <code>DRY_RAW = 3326</code> and <code>WET_RAW = 1520</code>.</p>
+                        </div>
+
+                        <div class="sensor-deep-card">
+                            <div class="sensor-deep-head">
+                                <span class="sensor-icon">🌡️</span>
+                                <h4>DS18B20 Digital Temperature</h4>
+                            </div>
+                            <p>Waterproof digital thermal probe communicating over Dallas 1-Wire protocol on GPIO 4 with 4.7kΩ pull-up resistor. Tracks root-zone temperature with automatic fault rejection (-127°C and 85°C).</p>
+                        </div>
+
+                        <div class="sensor-deep-card">
+                            <div class="sensor-deep-head">
+                                <span class="sensor-icon">📏</span>
+                                <h4>HC-SR04 Ultrasonic Sonar</h4>
+                            </div>
+                            <p>Emits 40 kHz ultrasonic pulses on TRIG (GPIO 5) and measures echo round-trip flight time on ECHO (GPIO 18 with 2.5V safe divider) to measure non-contact canopy air distance in centimeters.</p>
+                        </div>
+                    </div>
+
+                    <!-- Plant Height Mathematical Model -->
+                    <div class="height-formula-banner">
+                        <div class="formula-icon">🌿</div>
+                        <div class="formula-details">
+                            <h4>Deterministic Plant Height Calculation Model</h4>
+                            <div class="formula-code">
+                                <code>Plant Height = Sensor-to-Soil Mount Datum (30.0 cm) - Measured Echo Distance</code>
+                            </div>
+                            <p>The <strong>30.0 cm reference value</strong> represents the physical mounting baseline of the transducer mount above the empty container soil bed. Height values are deterministically derived from ultrasound echo flight times and are never fabricated.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. ACHIEVEMENTS & RESEARCH PUBLICATION -->
+            <section class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>📄 Achievements & Research Publications</h2>
+                        <p>Peer-reviewed scholarly research in applied predictive agriculture and Explainable AI</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Scholarly Work</span>
+                </div>
+
+                <div class="publication-card">
+                    <div class="pub-badge-row">
+                        <span class="pub-type-badge">Peer-Reviewed Journal Publication</span>
+                        <span class="pub-date-badge">📅 April 2026</span>
+                    </div>
+                    <h3 class="pub-title">"AI-Based Data-Driven Predictive Farming System with Explainable AI and Financial Insights"</h3>
+                    <div class="pub-metadata-grid">
+                        <div class="pub-meta-item">
+                            <span class="pub-meta-label">Journal</span>
+                            <strong>International Journal of Versatile Research and Analysis (IJVRA)</strong>
+                        </div>
+                        <div class="pub-meta-item">
+                            <span class="pub-meta-label">Publication Date</span>
+                            <strong>April 2026</strong>
+                        </div>
+                        <div class="pub-meta-item">
+                            <span class="pub-meta-label">Paper ID</span>
+                            <strong>IJVRA26A4143</strong>
+                        </div>
+                        <div class="pub-meta-item">
+                            <span class="pub-meta-label">Research Focus</span>
+                            <strong>Predictive Farming • Explainable AI • Financial Feasibility</strong>
+                        </div>
+                    </div>
+                    <p class="pub-abstract">
+                        This research paper formalizes an explainable, data-driven agricultural decision intelligence framework that models multi-source environmental telemetry, soil dynamics, and predictive crop lifecycle patterns to provide transparent recommendations coupled with practical economic and financial insights for farmers.
+                    </p>
+                </div>
+            </section>
+
+            <!-- 8. PORTFOLIO TIMELINE -->
+            <section class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>⏱️ Engineering Milestone Timeline</h2>
+                        <p>Key technological focus areas and engineering progression</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Milestones</span>
+                </div>
+
+                <div class="portfolio-timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot">2026</div>
+                        <div class="timeline-content">
+                            <h4>🤖 AI & Machine Learning Systems</h4>
+                            <p>Engineered multi-classifier models, feature extraction algorithms (TF-IDF, tabular normalization), and explainable decision trees for cybersecurity and crop intelligence.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>🌱 IoT Precision Agriculture Platforms</h4>
+                            <p>Designed and deployed physical ESP32 embedded telemetric hardware with capacitive soil moisture calibration, Dallas 1-Wire temperature, and ultrasonic sonar canopy profiling.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>🛡️ Cybersecurity & Phishing Detection</h4>
+                            <p>Built URL threat classification systems and interactive automated security advisors using Scikit-learn and Flask architectures.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>📄 Scholarly Research & Publication</h4>
+                            <p>Published peer-reviewed research in the International Journal of Versatile Research and Analysis (IJVRA) on AI-based predictive farming and financial decision modeling.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>🚀 Full-Stack Cloud & PWA Deployment</h4>
+                            <p>Architected production deployments with Python Flask, Render Web Services, PostgreSQL/Supabase, SQLite persistence, and standalone installable Mobile PWAs.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>📚 Continuous Learning & Engineering Innovation</h4>
+                            <p>Iteratively refining hardware reliability, model explainability, software craftsmanship, and real-world system architecture.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. PROJECT TEAM -->
+            <section class="panel portfolio-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2>👥 Project Team</h2>
+                        <p>Engineering contributors driving hardware, software, and research initiatives</p>
+                    </div>
+                    <span class="portfolio-tag-pill">Team</span>
+                </div>
+
+                <!-- Dynamically rendered team members list from JS configuration -->
+                <div id="portfolioTeamList" class="team-showcase-grid"></div>
+            </section>
+
+        </div>
+
         <!-- FOOTER -->
         <footer class="app-footer">
             <div class="footer-left">
-                <strong>IoT Plant Growth & Environmental Monitoring System</strong>
-                <span>ESP32 DevKit V1 • Python Flask • SQLite Persistence • Relative Soil Moisture Index</span>
+                <strong>🌱 Plant Monitor • Precision IoT Agriculture</strong>
+                <span>Built with: ESP32 • Flask • Python • JavaScript • IoT</span>
+            </div>
+            <div class="footer-middle">
+                <span>Developer: <strong>Manoj T K</strong></span>
+                <span class="footer-links">
+                    <a href="https://github.com/manojtk900" target="_blank" rel="noopener noreferrer">GitHub</a> • 
+                    <a href="https://www.linkedin.com/in/manoj-t-k-00ab73378/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                </span>
             </div>
             <div class="footer-right">
-                <span class="viva-badge">Academic Engineering Capstone</span>
+                <span class="viva-badge">© 2026 Plant Monitor</span>
             </div>
         </footer>
 
@@ -1132,7 +1726,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- Main Client Application Controller -->
-<script src="{{ url_for('static', filename='app.js') }}?v=3.0"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=3.1"></script>
 
 </body>
 </html>
