@@ -1110,19 +1110,52 @@ function initNavigation() {
     };
 
     // =====================================================================
-    // PORTFOLIO & TEAM MEMBERS CONFIGURATION (EXTENSIBLE)
+    // PORTFOLIO & TEAM MEMBERS CONFIGURATION (ASTRAL TEAM — 7th SEM CSE)
     // =====================================================================
     const teamMembers = [
         {
             name: "Manoj T K",
+            initials: "MT",
+            dept: "CSE • 7th Semester",
             role: "Developer / Project Contributor",
             photo: "/static/images/profile.jpg",
             github: "https://github.com/manojtk900",
-            linkedin: "https://www.linkedin.com/in/manoj-t-k-00ab73378/",
-            // Optional placeholders: if provided, buttons are rendered; if empty, omitted safely
-            email: "",
-            resume: "",
-            portfolio: ""
+            linkedin: "https://www.linkedin.com/in/manoj-t-k-00ab73378/"
+        },
+        {
+            name: "Megharaj",
+            initials: "MG",
+            dept: "CSE • 7th Semester",
+            role: "Project Contributor",
+            photo: ""
+        },
+        {
+            name: "Likith Gowda S",
+            initials: "LG",
+            dept: "CSE • 7th Semester",
+            role: "Project Contributor",
+            photo: ""
+        },
+        {
+            name: "Manoj V",
+            initials: "MV",
+            dept: "CSE • 7th Semester",
+            role: "Project Contributor",
+            photo: ""
+        },
+        {
+            name: "Likith V",
+            initials: "LV",
+            dept: "CSE • 7th Semester",
+            role: "Project Contributor",
+            photo: ""
+        },
+        {
+            name: "Prajwal S",
+            initials: "PS",
+            dept: "CSE • 7th Semester",
+            role: "Project Contributor",
+            photo: ""
         }
     ];
 
@@ -1145,31 +1178,42 @@ function initNavigation() {
                 </a>`;
             }
             if (member.email && member.email.trim()) {
-                linksHtml += `<a href="mailto:${escapeHtml(member.email)}" class="team-social-btn" title="Email">
-                    ✉️ Email
-                </a>`;
+                linksHtml += `<a href="mailto:${escapeHtml(member.email)}" class="team-social-btn" title="Email">✉️ Email</a>`;
             }
             if (member.resume && member.resume.trim()) {
-                linksHtml += `<a href="${escapeHtml(member.resume)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="Resume">
-                    📄 Resume
-                </a>`;
+                linksHtml += `<a href="${escapeHtml(member.resume)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="Resume">📄 Resume</a>`;
             }
             if (member.portfolio && member.portfolio.trim()) {
-                linksHtml += `<a href="${escapeHtml(member.portfolio)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="Portfolio">
-                    🌐 Site
-                </a>`;
+                linksHtml += `<a href="${escapeHtml(member.portfolio)}" target="_blank" rel="noopener noreferrer" class="team-social-btn" title="Portfolio">🌐 Site</a>`;
+            }
+
+            // Avatar rendering: If photo is specified, show image with fallback to SVG; else render initials avatar badge
+            let avatarHtml = "";
+            if (member.photo && member.photo.trim()) {
+                avatarHtml = `
+                    <div class="team-card-avatar-wrap">
+                        <img src="${escapeHtml(member.photo)}" 
+                             alt="${escapeHtml(member.name)}" 
+                             class="team-card-photo"
+                             onerror="this.onerror=null; this.src='/static/images/avatar-placeholder.svg';">
+                    </div>`;
+            } else {
+                avatarHtml = `
+                    <div class="team-card-avatar-wrap">
+                        <div class="team-avatar-initials">
+                            <span>${escapeHtml(member.initials || "ST")}</span>
+                        </div>
+                    </div>`;
             }
 
             return `
                 <div class="team-card">
-                    <img src="${escapeHtml(member.photo || '/static/images/profile.jpg')}" 
-                         alt="${escapeHtml(member.name)}" 
-                         class="team-card-photo"
-                         onerror="this.onerror=null; this.src='/static/images/avatar-placeholder.svg';">
+                    ${avatarHtml}
                     <div class="team-card-info">
                         <h4 class="team-card-name">${escapeHtml(member.name)}</h4>
-                        <div class="team-card-role">${escapeHtml(member.role)}</div>
-                        <div class="team-card-links">${linksHtml}</div>
+                        <div class="team-card-dept">${escapeHtml(member.dept || "CSE • 7th Semester")}</div>
+                        <div class="team-card-role">${escapeHtml(member.role || "Project Contributor")}</div>
+                        ${linksHtml ? `<div class="team-card-links">${linksHtml}</div>` : ""}
                     </div>
                 </div>
             `;

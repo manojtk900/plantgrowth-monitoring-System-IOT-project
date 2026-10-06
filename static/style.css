@@ -3393,38 +3393,201 @@ h1, h2, h3, h4, h5, .logo-text, .stat-number, .score-large-digit {
     line-height: 1.5;
 }
 
-/* 9. TEAM SHOWCASE */
+/* 9. ASTRAL TEAM & ACADEMIC PROJECT IDENTITY */
+.team-academic-badge-card {
+    background: linear-gradient(135deg, rgba(16, 42, 30, 0.85) 0%, rgba(8, 28, 19, 0.95) 100%);
+    border: 1px solid rgba(52, 211, 153, 0.28);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.academic-badge-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.academic-team-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.team-brand-icon {
+    font-size: 30px;
+    line-height: 1;
+}
+
+.academic-team-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    margin: 0 0 2px 0;
+}
+
+.academic-project-subtitle {
+    font-size: 13px;
+    color: #34d399;
+    font-weight: 600;
+    margin: 0;
+}
+
+.academic-sem-badge {
+    display: inline-block;
+    padding: 5px 14px;
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 20px;
+    color: #6ee7b7;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.academic-institution-box {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.inst-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inst-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6ee7b7;
+    font-weight: 600;
+}
+
+.inst-name, .inst-dept, .inst-domain {
+    font-size: 12.5px;
+    color: #e2e8f0;
+}
+
+.academic-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.acad-pill {
+    padding: 3px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #cbd5e1;
+}
+
+.team-story-card {
+    background: rgba(16, 185, 129, 0.05);
+    border-left: 4px solid #10b981;
+    border-radius: 0 12px 12px 0;
+    padding: 16px 20px;
+    margin-bottom: 22px;
+}
+
+.team-story-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.story-icon {
+    font-size: 18px;
+}
+
+.team-story-header h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #a7f3d0;
+    margin: 0;
+}
+
+.team-story-text {
+    font-size: 13px;
+    line-height: 1.65;
+    color: #e2e8f0;
+    margin: 0;
+}
+
+/* 6 TEAM MEMBERS SHOWCASE GRID (Desktop: 3x2, Tablet: 2x3, Mobile: 1x6) */
 .team-showcase-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
 
+@media (min-width: 769px) and (max-width: 1100px) {
+    .team-showcase-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .team-card {
-    background: rgba(10, 30, 21, 0.7);
+    background: rgba(10, 30, 21, 0.75);
     border: 1px solid rgba(52, 211, 153, 0.18);
     border-radius: 14px;
-    padding: 20px;
+    padding: 18px 16px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .team-card:hover {
     transform: translateY(-3px);
-    border-color: rgba(52, 211, 153, 0.35);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    border-color: rgba(52, 211, 153, 0.45);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+.team-card-avatar-wrap {
+    flex-shrink: 0;
+}
+
+.team-avatar-initials {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.45));
+    border: 2px solid #10b981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 }
 
 .team-card-photo {
-    width: 64px;
-    height: 64px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #10b981;
     background: #061f14;
-    flex-shrink: 0;
+    display: block;
 }
 
 .team-card-info {
@@ -3440,26 +3603,33 @@ h1, h2, h3, h4, h5, .logo-text, .stat-number, .score-large-digit {
     margin: 0 0 2px 0;
 }
 
+.team-card-dept {
+    font-size: 11.5px;
+    color: #6ee7b7;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
 .team-card-role {
-    font-size: 12px;
-    color: #a7f3d0;
-    margin: 0 0 10px 0;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 8px;
 }
 
 .team-card-links {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 .team-social-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 10px;
+    padding: 3px 8px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #e2e8f0;
     text-decoration: none;
     transition: all 0.15s ease;
@@ -3564,6 +3734,11 @@ h1, h2, h3, h4, h5, .logo-text, .stat-number, .score-large-digit {
 
     .team-showcase-grid {
         grid-template-columns: 1fr;
+    }
+
+    .academic-institution-box {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     .footer-middle {

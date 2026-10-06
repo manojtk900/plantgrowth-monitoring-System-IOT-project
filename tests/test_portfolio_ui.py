@@ -14,7 +14,7 @@ class TestPortfolioIntegration(unittest.TestCase):
 
         # 1. Navigation item
         self.assertIn('data-view="portfolio"', html)
-        self.assertIn('About / Portfolio', html)
+        self.assertIn('About', html)
 
         # 2. Portfolio View Container
         self.assertIn('id="view-portfolio"', html)
@@ -64,12 +64,18 @@ class TestPortfolioIntegration(unittest.TestCase):
         self.assertIn('IJVRA26A4143', html)
         self.assertIn('April 2026', html)
 
-        # 10. Team Section
+        # 10. Team Section — ASTRAL TEAM Academic Identity
+        self.assertIn('ASTRAL TEAM', html)
+        self.assertIn('Sri Siddhartha School of Engineering', html)
+        self.assertIn('Department of Computer Science', html)
+        self.assertIn('7th Semester', html)
+        self.assertIn('Project Story', html)
         self.assertIn('id="portfolioTeamList"', html)
 
         # 11. Footer
         self.assertIn('Built with: ESP32 • Flask • Python • JavaScript • IoT', html)
         self.assertIn('Manoj T K', html)
+        self.assertIn('Sri Siddhartha School of Engineering', html)
 
     def test_static_assets_exist(self):
         # SVG fallback avatar must exist
@@ -94,6 +100,18 @@ class TestPortfolioIntegration(unittest.TestCase):
         self.assertIn('portfolio:', js)
         self.assertIn('teamMembers =', js)
         self.assertIn('renderTeamMembers', js)
+        self.assertIn('Manoj T K', js)
+        self.assertIn('Megharaj', js)
+        self.assertIn('Likith Gowda S', js)
+        self.assertIn('Manoj V', js)
+        self.assertIn('Likith V', js)
+        self.assertIn('Prajwal S', js)
+        self.assertIn('MT', js)
+        self.assertIn('MG', js)
+        self.assertIn('LG', js)
+        self.assertIn('MV', js)
+        self.assertIn('LV', js)
+        self.assertIn('PS', js)
         self.assertIn('hashchange', js)
 
     def test_api_contracts_remain_intact(self):

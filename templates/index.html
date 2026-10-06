@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="PlantMonitor">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🌱</text></svg>">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -1664,17 +1664,67 @@
                 </div>
             </section>
 
-            <!-- 9. PROJECT TEAM -->
+            <!-- 9. PROJECT TEAM — ASTRAL TEAM -->
             <section class="panel portfolio-panel">
                 <div class="panel-header">
                     <div>
-                        <h2>👥 Project Team</h2>
-                        <p>Engineering contributors driving hardware, software, and research initiatives</p>
+                        <h2>👥 Our Team • ASTRAL TEAM</h2>
+                        <p>7th-Semester Computer Science &amp; Engineering IoT Capstone Project Group</p>
                     </div>
-                    <span class="portfolio-tag-pill">Team</span>
+                    <span class="portfolio-tag-pill">Academic Project</span>
                 </div>
 
-                <!-- Dynamically rendered team members list from JS configuration -->
+                <!-- Academic Project Identity Block -->
+                <div class="team-academic-badge-card">
+                    <div class="academic-badge-top">
+                        <div class="academic-team-brand">
+                            <span class="team-brand-icon">⚡</span>
+                            <div>
+                                <h3 class="academic-team-title">ASTRAL TEAM</h3>
+                                <p class="academic-project-subtitle">IoT-Based Plant Growth &amp; Environmental Monitoring System</p>
+                            </div>
+                        </div>
+                        <span class="academic-sem-badge">7th Semester • CSE</span>
+                    </div>
+
+                    <div class="academic-institution-box">
+                        <div class="inst-item">
+                            <span class="inst-label">Institution</span>
+                            <strong class="inst-name">Sri Siddhartha School of Engineering</strong>
+                        </div>
+                        <div class="inst-item">
+                            <span class="inst-label">Department</span>
+                            <strong class="inst-dept">Department of Computer Science &amp; Engineering</strong>
+                        </div>
+                        <div class="inst-item">
+                            <span class="inst-label">Domain</span>
+                            <strong class="inst-domain">IoT + Smart Agriculture + Environmental Monitoring</strong>
+                        </div>
+                    </div>
+
+                    <div class="academic-pills-row">
+                        <span class="acad-pill">CSE</span>
+                        <span class="acad-pill">7th Semester</span>
+                        <span class="acad-pill">IoT</span>
+                        <span class="acad-pill">Smart Agriculture</span>
+                        <span class="acad-pill">ESP32</span>
+                        <span class="acad-pill">Flask</span>
+                        <span class="acad-pill">Environmental Monitoring</span>
+                    </div>
+                </div>
+
+                <!-- Project Story Block -->
+                <div class="team-story-card">
+                    <div class="team-story-header">
+                        <span class="story-icon">🌱</span>
+                        <h4>Project Story &amp; Engineering Vision</h4>
+                    </div>
+                    <p class="team-story-text">
+                        <strong>ASTRAL TEAM</strong> is a team of 7th-semester Computer Science &amp; Engineering students from Sri Siddhartha School of Engineering working on an IoT-based smart agriculture project. The system combines ESP32, environmental sensors, Wi-Fi communication, backend APIs, database storage and a responsive web dashboard to monitor plant growth and environmental conditions.
+                    </p>
+                </div>
+
+                <!-- 6 Team Members Showcase Grid (Desktop 3x2, Tablet 2x3, Mobile 1x6) -->
                 <div id="portfolioTeamList" class="team-showcase-grid"></div>
             </section>
 
@@ -1687,14 +1737,15 @@
                 <span>Built with: ESP32 • Flask • Python • JavaScript • IoT</span>
             </div>
             <div class="footer-middle">
-                <span>Developer: <strong>Manoj T K</strong></span>
+                <span>Developer: <strong>Manoj T K</strong> • Team: <strong>ASTRAL TEAM (CSE • 7th Sem)</strong></span>
                 <span class="footer-links">
                     <a href="https://github.com/manojtk900" target="_blank" rel="noopener noreferrer">GitHub</a> • 
-                    <a href="https://www.linkedin.com/in/manoj-t-k-00ab73378/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                    <a href="https://www.linkedin.com/in/manoj-t-k-00ab73378/" target="_blank" rel="noopener noreferrer">LinkedIn</a> • 
+                    <a href="https://github.com/manojtk900/plantgrowth-monitoring-System-IOT-project.git" target="_blank" rel="noopener noreferrer">Project Repo</a>
                 </span>
             </div>
             <div class="footer-right">
-                <span class="viva-badge">© 2026 Plant Monitor</span>
+                <span class="viva-badge">Sri Siddhartha School of Engineering</span>
             </div>
         </footer>
 
@@ -1726,7 +1777,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- Main Client Application Controller -->
-<script src="{{ url_for('static', filename='app.js') }}?v=3.1"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=3.2"></script>
 
 </body>
 </html>
