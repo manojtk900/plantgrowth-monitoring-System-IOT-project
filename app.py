@@ -41,6 +41,7 @@ from calculations import (
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "plant-monitor-dev-key-change-in-production")
+app.config["DATABASE_URL"] = os.environ.get("DATABASE_URL")
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024  # 2MB maximum payload limit
 
 import db as db_layer
@@ -56,9 +57,9 @@ DATABASE_PATH = os.path.join(DATABASE_FOLDER, "plant_monitor.db")
 def get_db():
     """
     Get unified database connection wrapper (SQLite or PostgreSQL).
-    Respects app.config['DATABASE_URL'], app.config['DATABASE'], or DATABASE_PATH.
+    Respects app.config['DATABASE_URL'], os.environ['DATABASE_URL'], app.config['DATABASE'], or DATABASE_PATH.
     """
-    target = app.config.get("DATABASE_URL") or app.config.get("DATABASE") or DATABASE_PATH
+    target = app.config.get("DATABASE_URL") or os.environ.get("DATABASE_URL") or app.config.get("DATABASE") or DATABASE_PATH
     return db_layer.get_db(target)
 
 
@@ -67,7 +68,7 @@ def initialize_database():
     Initialize database schema, indexes, and default calibration settings.
     Non-destructive: preserves all existing historical records.
     """
-    target = app.config.get("DATABASE_URL") or app.config.get("DATABASE") or DATABASE_PATH
+    target = app.config.get("DATABASE_URL") or os.environ.get("DATABASE_URL") or app.config.get("DATABASE") or DATABASE_PATH
     db_layer.init_db(target)
     load_settings_from_db()
 
@@ -742,13 +743,15 @@ def health_check():
         cursor = connection.cursor()
         cursor.execute("SELECT 1")
         row = cursor.fetchone()
+        is_pg = getattr(connection, "is_postgres", False)
         connection.close()
 
         db_state = "connected" if row else "unresponsive"
         return jsonify({
             "status": "ok",
             "service": "plant_growth_monitor",
-            "database": db_state
+            "database": db_state,
+            "engine": "postgresql" if is_pg else "sqlite"
         }), 200
     except Exception:
         return jsonify({

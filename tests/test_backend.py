@@ -391,6 +391,7 @@ class TestFlaskEndpoints(unittest.TestCase):
         self.assertEqual(data["status"], "ok")
         self.assertEqual(data["service"], "plant_growth_monitor")
         self.assertEqual(data["database"], "connected")
+        self.assertIn("engine", data)
 
     def test_database_record_count_preservation(self):
         """Verify the database has at least the original 85 records."""
